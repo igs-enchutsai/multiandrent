@@ -1,5 +1,5 @@
 # Kiro Multi-Agent Team Configuration
-# 教學版本 - 上課用的muti-agent 群組
+# 活動分析團隊
 
 channel:
   bot_token_env: TELEGRAM_BOT_TOKEN
@@ -24,12 +24,38 @@ hang_detector:
   timeout_minutes: 60
 
 instances:
-  leader-agent:
-    working_directory: ./agents/leader-agent
-    description: "團隊領導 - 任務協調與分派"
-    topic_id: 3
+  # ─── 活動分析團隊 ───
+  event-king:
+    working_directory: ./agents/event-king
+    description: "活動王 - 團隊領導，任務協調與分派"
+    topic_id: 0
     role: leader
     general_topic: true
+
+  analyst-andrew:
+    working_directory: ./agents/analyst-andrew
+    description: "分析安德魯 - 因果推論、活動成效分析"
+    topic_id: 0
+    role: worker
+
+  monitor-anglo:
+    working_directory: ./agents/monitor-anglo
+    description: "體脂30安格魯 - 監控健檢、議題樹拆解、異常診斷"
+    topic_id: 0
+    role: worker
+
+  data-hancock:
+    working_directory: ./agents/data-hancock
+    description: "漢考克盎格魯 - BigQuery 資料查詢與前處理"
+    topic_id: 0
+    role: worker
+
+  # ─── 舊有 Agent（保留）───
+  leader-agent:
+    working_directory: ./agents/leader-agent
+    description: "團隊領導 - 任務協調與分派（舊）"
+    topic_id: 3
+    role: leader
 
   fig-find-agent:
     working_directory: ./agents/fig-find-agent

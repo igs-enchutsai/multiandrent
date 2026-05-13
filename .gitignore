@@ -13,3 +13,5 @@ media/
 *.exe
 *.msi
 team.pid
+gcp-key.json
+*-key.json

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "team": {
+      "command": "py",
+      "args": [
+        "-m", "kiro_multi_agent.team_mcp",
+        "--port", "8470",
+        "--instance", "event-king",
+        "--role", "leader",
+        "--allowed-targets", "analyst-andrew,monitor-anglo,data-hancock"
+      ]
+    }
+  }
+}
