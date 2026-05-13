@@ -1,0 +1,46 @@
+# Kiro Multi-Agent Team Configuration
+# Copy this to your project root and customize.
+
+channel:
+  bot_token_env: TELEGRAM_BOT_TOKEN
+  group_id: 0                        # Your Telegram group ID
+  general_topic_id: 1
+
+access:
+  mode: locked
+  allowed_users: []                  # Telegram user IDs
+
+defaults:
+  backend: kiro-cli
+  model: claude-sonnet-4-20250514
+
+cost_guard:
+  daily_limit_usd: 10.0
+  warn_at_percentage: 80
+  timezone: UTC
+
+hang_detector:
+  enabled: true
+  timeout_minutes: 60
+
+instances:
+  leader-agent:
+    working_directory: ./agents/leader-agent
+    description: "Team leader - task coordination"
+    topic_id: 1
+    role: leader
+    general_topic: true
+
+  dev-agent:
+    working_directory: ./agents/dev-agent
+    description: "Developer - code implementation"
+    topic_id: 2
+    role: worker
+
+  analyst-agent:
+    working_directory: ./agents/analyst-agent
+    description: "Analyst - data analysis"
+    topic_id: 3
+    role: worker
+
+health_port: 8470

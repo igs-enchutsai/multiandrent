@@ -1,0 +1,671 @@
+你是一位資深全端工程師與資料分析系統架構師。
+
+請幫我撰寫一個本地端工具，用來蒐集 X / Twitter 上「指定競品帳號或指定競品貼文頁面」的公開內容，並整理玩家近期反饋。
+
+重要限制：
+1. 我沒有購買 X API。
+2. 不要使用任何繞過驗證、破解防爬、繞過付費牆、繞過登入限制、Captcha bypass、代理池攻擊、暴力請求等方式。
+3. 工具應該以「本地端瀏覽器輔助蒐集公開可見資料」為主，例如 Playwright / Puppeteer。
+4. 必須尊重網站限制，加入合理等待時間、低頻率請求、錯誤重試、人工可控中止。
+5. 目標是協助產品 PM 分析競品社群玩家反饋，不是大量洗資料。
+
+請建立一個可在本地端執行的專案，功能如下：
+
+---
+
+# 一、核心目標
+
+我希望輸入一組 X 競品帳號網址或指定貼文網址，例如：
+
+- https://x.com/example_game
+- https://x.com/example_game/status/123456789
+- 多個競品帳號清單
+
+系統可以自動蒐集以下資料：
+
+## 1. 貼文資料
+每一篇貼文要盡量取得：
+
+- 貼文 ID
+- 貼文網址
+- 作者名稱
+- 作者帳號
+- 發文時間
+- 貼文完整文字
+- 貼文語言
+- 是否為轉貼 / 引用 / 回覆
+- 內含圖片 URL
+- 內含影片縮圖 URL，如果能取得
+- 內含外部連結
+- hashtags
+- mentions
+- 留言數
+- 按讚數
+- 轉貼數 / repost count
+- 引用數 / quote count
+- 瀏覽數，如果頁面可見
+- 蒐集時間
+- 資料來源頁面
+
+## 2. 貼圖 / 圖片資料
+針對每一篇貼文內出現的圖片：
+
+- 圖片 URL
+- 圖片檔名
+- 對應貼文 ID
+- 是否下載到本地
+- 本地圖片路徑
+- 圖片 alt text，如果頁面可取得
+- 圖片 hash，用來避免重複下載
+
+圖片下載要做成本地快取，避免重複下載。
+
+## 3. 留言 / 回覆資料
+針對指定貼文，盡量蒐集公開可見的回覆：
+
+- 回覆 ID
+- 回覆網址
+- 回覆作者
+- 回覆帳號
+- 回覆時間
+- 回覆文字
+- 回覆圖片 URL
+- 回覆按讚數
+- 回覆轉貼數
+- 是否為樓中樓回覆
+- 父貼文 ID
+- 蒐集時間
+
+因為 X 每次載入可看到的留言數量可能不同，所以需要：
+- 多輪載入
+- 多次驗證
+- 重複資料去重
+- 每次執行都記錄此次抓到多少留言
+- 可以比較不同輪次是否還有新增留言
+- 如果連續 N 輪都沒有新增留言，就停止
+
+## 4. 玩家反饋分析
+蒐集完資料後，請協助整理玩家近期反饋，輸出分類報告。
+
+分類至少包含：
+
+- 正面反饋
+- 負面反饋
+- Bug / 錯誤回報
+- 玩法建議
+- 活動建議
+- 課金 / 商城 / 價格反饋
+- 抽卡 / 機率 / 獎勵反饋
+- 平衡性問題
+- 美術 / 角色 / 造型反饋
+- 效能 / 閃退 / 連線問題
+- 客服 / 補償問題
+- 社群情緒
+- 高熱度留言
+- 值得產品團隊追蹤的議題
+
+每一類要輸出：
+- 分類名稱
+- 代表性留言
+- 出現次數
+- 情緒傾向
+- 重要程度
+- 產品建議
+- 原始貼文 / 留言連結
+
+---
+
+# 二、技術要求
+
+請用以下技術組合建立專案：
+
+## 後端 / 爬取端
+優先使用：
+
+- Node.js + TypeScript
+- Playwright
+
+如果你認為 Python 更適合，也可以改用：
+
+- Python
+- Playwright
+- BeautifulSoup，僅在合適時使用
+- SQLite
+
+但請優先給我 Node.js + TypeScript 版本。
+
+## 本地資料庫
+請使用 SQLite 建立本地資料庫。
+
+需要設計資料表：
+
+1. competitors
+2. crawl_jobs
+3. posts
+4. post_media
+5. post_metrics_snapshots
+6. replies
+7. reply_media
+8. analysis_reports
+9. feedback_categories
+10. crawl_logs
+
+資料庫要支援：
+- 去重
+- 增量更新
+- 歷史數據保留
+- 每次爬取紀錄
+- 同一貼文不同時間的數據變化，例如按讚數、轉貼數、留言數變化
+
+## 前端 / 操作介面
+請建立一個簡單的本地 Web UI，可以用：
+
+- React
+- Vite
+- Tailwind CSS
+- shadcn/ui
+
+功能包含：
+
+1. 新增競品帳號網址
+2. 新增指定貼文網址
+3. 啟動爬取任務
+4. 查看目前爬取進度
+5. 查看已蒐集貼文列表
+6. 查看單篇貼文詳細資訊
+7. 查看留言列表
+8. 查看圖片列表
+9. 查看反饋分類報告
+10. 匯出報告
+
+---
+
+# 三、爬取邏輯設計
+
+請設計穩定且保守的爬取流程。
+
+## 1. 帳號頁爬取
+輸入帳號網址後：
+
+- 開啟本地瀏覽器
+- 進入指定帳號頁
+- 等待頁面載入
+- 抓取目前可見貼文
+- 慢速往下滾動
+- 每次滾動後等待一段時間
+- 擷取新出現貼文
+- 去重
+- 記錄 scroll round
+- 若連續多輪沒有新貼文則停止
+- 可設定最大貼文數，例如 50 / 100 / 200
+- 可設定時間範圍，例如只抓近 7 天 / 30 天 / 90 天
+
+## 2. 貼文頁爬取
+輸入指定貼文網址後：
+
+- 開啟貼文頁
+- 抓取主貼文內容
+- 抓取主貼文圖片
+- 抓取主貼文互動數據
+- 開始往下讀取留言
+- 多輪滾動
+- 留言去重
+- 每一輪都記錄新增留言數
+- 如果連續 N 輪沒有新增留言，停止
+- 儲存完整 crawl log
+
+## 3. 資料完整性驗證
+因為 X 每次載入可見留言可能不完全相同，請加入完整性驗證：
+
+- 同一貼文可執行多次 crawl pass
+- 每次 pass 都存一份 snapshot
+- 用 reply_id / text hash / author + timestamp 做去重
+- 統計每次新增留言數
+- 如果多次 pass 新增量趨近 0，標記為「目前資料已趨於穩定」
+- 如果留言數頁面顯示為 500，但實際只抓到 80，要在報告中標記「留言資料可能不完整」
+- 產出 completeness_score，例如：
+  - 90–100：資料相對完整
+  - 70–89：資料可用但可能遺漏
+  - 50–69：資料不足，需要再次執行
+  - 低於 50：不建議直接做結論
+
+## 4. 錯誤處理
+請處理：
+
+- 頁面載入失敗
+- 網路不穩
+- 貼文不存在
+- 貼文被刪除
+- 帳號鎖定
+- 需要登入但目前沒有可見內容
+- 頁面結構改版
+- 圖片下載失敗
+- 資料欄位缺失
+
+所有錯誤都要寫入 crawl_logs。
+
+---
+
+# 四、分析功能
+
+請建立一個 analysis module。
+
+輸入：
+- 指定競品
+- 指定時間範圍
+- 指定貼文集合
+
+輸出：
+
+## 1. 貼文成效摘要
+包含：
+
+- 總貼文數
+- 總留言數
+- 總按讚數
+- 總轉貼數
+- 平均互動率
+- 高互動貼文 Top 10
+- 負評最多貼文 Top 10
+- 玩家建議最多貼文 Top 10
+
+## 2. 玩家反饋分類
+請用規則式分類 + 可擴充 AI 分析接口。
+
+先不強制串接 OpenAI API，但請預留 provider interface，例如：
+
+- LocalRuleAnalyzer
+- OpenAIAnalyzer
+- ClaudeAnalyzer
+- CustomLLMAnalyzer
+
+目前先完成 LocalRuleAnalyzer，使用關鍵字與簡單情緒規則分類。
+
+分類邏輯要支援中文、英文、日文。
+
+例如：
+
+Bug 類關鍵字：
+- bug
+- error
+- crash
+- frozen
+- stuck
+- cannot login
+- 閃退
+- 卡住
+- 錯誤
+- 登不進去
+- バグ
+- エラー
+- 落ちる
+
+課金類關鍵字：
+- expensive
+- price
+- pack
+- gacha
+- rate
+- pity
+- 太貴
+- 課金
+- 禮包
+- 機率
+- 保底
+- 高すぎる
+- ガチャ
+- 確率
+
+玩法建議類關鍵字：
+- should add
+- please add
+- suggestion
+- hope
+- 希望
+- 建議
+- 可以加入
+- 追加して
+- 改善して
+
+請把分類規則設計成 JSON 或 YAML 設定檔，方便我後續自己調整。
+
+## 3. 報告輸出
+請支援輸出：
+
+- Markdown
+- CSV
+- JSON
+- HTML
+
+Markdown 報告格式請包含：
+
+# 競品社群反饋分析報告
+
+## 一、分析範圍
+- 競品名稱
+- 分析期間
+- 蒐集貼文數
+- 蒐集留言數
+- 資料完整度
+- 執行時間
+
+## 二、整體社群情緒
+- 正面比例
+- 負面比例
+- 中性比例
+- 主要討論議題
+
+## 三、高熱度貼文
+用表格列出：
+- 排名
+- 貼文摘要
+- 發文時間
+- 按讚數
+- 留言數
+- 轉貼數
+- 連結
+
+## 四、玩家反饋分類
+用表格列出：
+- 分類
+- 數量
+- 情緒
+- 代表留言
+- 重要程度
+- 建議處理方式
+
+## 五、產品建議
+根據玩家反饋，整理：
+- 短期可處理事項
+- 中期優化方向
+- 長期產品機會
+- 需要持續觀察的風險
+
+## 六、原始資料索引
+列出相關貼文與留言連結。
+
+---
+
+# 五、資料庫 Schema 要求
+
+請幫我建立 SQLite schema。
+
+至少包含：
+
+## competitors
+- id
+- name
+- x_url
+- handle
+- created_at
+- updated_at
+
+## crawl_jobs
+- id
+- competitor_id
+- target_url
+- target_type
+- status
+- started_at
+- finished_at
+- max_posts
+- max_replies
+- crawl_passes
+- completeness_score
+- error_message
+
+## posts
+- id
+- competitor_id
+- post_id
+- url
+- author_name
+- author_handle
+- content
+- language
+- posted_at
+- is_repost
+- is_quote
+- is_reply
+- raw_json
+- created_at
+- updated_at
+
+## post_metrics_snapshots
+- id
+- post_id
+- like_count
+- reply_count
+- repost_count
+- quote_count
+- view_count
+- captured_at
+
+## post_media
+- id
+- post_id
+- media_type
+- media_url
+- local_path
+- alt_text
+- hash
+- downloaded_at
+
+## replies
+- id
+- post_id
+- reply_id
+- parent_reply_id
+- url
+- author_name
+- author_handle
+- content
+- language
+- like_count
+- repost_count
+- replied_at
+- raw_json
+- created_at
+- updated_at
+
+## reply_media
+- id
+- reply_id
+- media_type
+- media_url
+- local_path
+- alt_text
+- hash
+- downloaded_at
+
+## feedback_categories
+- id
+- name
+- description
+- keywords_json
+- severity_weight
+
+## analysis_reports
+- id
+- competitor_id
+- job_id
+- title
+- date_range_start
+- date_range_end
+- summary_json
+- markdown_path
+- html_path
+- csv_path
+- json_path
+- created_at
+
+## crawl_logs
+- id
+- job_id
+- level
+- message
+- context_json
+- created_at
+
+---
+
+# 六、專案目錄結構
+
+請幫我建立完整專案結構，例如：
+
+x-community-insight/
+  package.json
+  README.md
+  .env.example
+  apps/
+    web/
+      src/
+        pages/
+        components/
+        api/
+    worker/
+      src/
+        crawler/
+        analyzer/
+        database/
+        exporters/
+        utils/
+  data/
+    database.sqlite
+    media/
+    exports/
+    logs/
+  config/
+    feedback-rules.yaml
+    competitors.example.json
+
+---
+
+# 七、CLI 指令
+
+請提供 CLI 指令：
+
+## 新增競品
+npm run cli competitor:add -- --name "Game A" --url "https://x.com/game_a"
+
+## 爬取競品帳號
+npm run cli crawl:account -- --competitor "Game A" --max-posts 100 --days 30
+
+## 爬取指定貼文
+npm run cli crawl:post -- --url "https://x.com/game_a/status/123456789" --passes 3 --max-replies 500
+
+## 分析資料
+npm run cli analyze -- --competitor "Game A" --days 30
+
+## 匯出報告
+npm run cli export -- --competitor "Game A" --format markdown
+
+---
+
+# 八、README 要求
+
+請在 README 裡面寫清楚：
+
+1. 如何安裝
+2. 如何初始化資料庫
+3. 如何新增競品
+4. 如何啟動本地 Web UI
+5. 如何啟動爬取
+6. 如何查看報告
+7. 如何匯出報告
+8. 注意事項
+
+注意事項要包含：
+- 僅蒐集公開可見資料
+- 不保證 X 頁面每次載入內容一致
+- 不要高頻率請求
+- 不要用來繞過網站限制
+- 若 X 頁面結構改版，需要更新 selector
+- 建議人工抽樣檢查資料品質
+
+---
+
+# 九、品質要求
+
+請產出可執行的程式碼，不要只給概念。
+
+請依照以下順序完成：
+
+1. 建立 package.json 與專案結構
+2. 建立 SQLite schema 與 migration
+3. 建立 database repository layer
+4. 建立 Playwright crawler
+5. 建立 account crawler
+6. 建立 post crawler
+7. 建立 media downloader
+8. 建立 feedback analyzer
+9. 建立 exporter
+10. 建立 CLI
+11. 建立簡易 Web UI
+12. 建立 README
+13. 建立基本測試
+
+---
+
+# 十、爬取策略細節
+
+請在 crawler 裡面設計：
+
+- safeWait(minMs, maxMs)
+- scrollAndCollect()
+- extractVisiblePosts()
+- extractPostMetrics()
+- extractReplies()
+- extractMedia()
+- normalizeCountText()
+  - 1.2K -> 1200
+  - 3M -> 3000000
+  - 1萬 -> 10000
+  - 2.5萬 -> 25000
+- dedupeByIdOrHash()
+- calculateCompletenessScore()
+- retryWithBackoff()
+
+不要使用激進策略。
+不要使用代理池。
+不要自動破解登入。
+不要自動解 Captcha。
+
+如果需要登入狀態，請設計成：
+- 使用者手動在本地瀏覽器登入
+- 工具只保存本地 browser profile
+- 不要求使用者輸入密碼到程式
+- 不上傳任何 cookie 到外部
+
+---
+
+# 十一、反饋分類輸出範例
+
+請讓系統最後可以輸出類似：
+
+| 分類 | 數量 | 情緒 | 重要程度 | 代表留言 | 建議 |
+|---|---:|---|---|---|---|
+| Bug / 閃退 | 35 | 負面 | 高 | "Game keeps crashing after update" | 優先檢查最新版本穩定性 |
+| 課金太貴 | 22 | 負面 | 中高 | "The new pack is too expensive" | 檢查禮包 CP 值與玩家感受 |
+| 活動稱讚 | 18 | 正面 | 中 | "This event is fun" | 可延續活動核心玩法 |
+| 希望新增角色 | 15 | 中性 | 中 | "Please add more characters" | 可納入角色池規劃 |
+
+---
+
+# 十二、我要你最後輸出
+
+請直接產出完整專案程式碼。
+
+如果一次無法完成所有檔案，請先完成最小可執行版本 MVP：
+
+MVP 必須包含：
+1. SQLite schema
+2. CLI
+3. Playwright 指定貼文爬取
+4. 留言多輪蒐集與去重
+5. 圖片下載
+6. 本地資料儲存
+7. Markdown 報告輸出
+8. README
+
+接著再補上 Web UI 與進階分析功能。

@@ -1,0 +1,21 @@
+# Default team.yaml template
+channel:
+  bot_token_env: TELEGRAM_BOT_TOKEN
+  group_id: 0
+  general_topic_id: 1
+
+access:
+  mode: locked
+  allowed_users: []
+
+defaults:
+  backend: kiro-cli
+
+instances:
+  my-agent:
+    working_directory: ./agents/my-agent
+    description: "My first agent"
+    topic_id: 1
+    role: worker
+
+health_port: 8470

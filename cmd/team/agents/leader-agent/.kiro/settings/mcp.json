@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "team": {
+      "args": [
+        "run",
+        "D:\\FishHunter_AgentSkill\\KiroMutiAgent\\cmd\\team",
+        "mcp",
+        "team",
+        "--port",
+        "8470",
+        "--instance",
+        "leader-agent",
+        "--role",
+        "leader"
+      ],
+      "command": "C:\\Program Files\\Go\\bin\\go.exe"
+    }
+  }
+}

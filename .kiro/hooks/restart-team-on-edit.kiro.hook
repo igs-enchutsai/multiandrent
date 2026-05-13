@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Auto Restart Team",
+  "description": "當 src/kiro_multi_agent/ 下的 Python 檔案被修改時，自動停止舊的 team process、清除 port、重新啟動服務",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/kiro_multi_agent/*.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "程式碼已更新。請執行以下步驟重啟 team 服務：1. 停止所有現有的 team process (使用 controlPwshProcess stop 停止所有相關 terminal) 2. 清除佔用 port 8470 的 process 3. 清除所有 kiro-cli process 4. 等待 3 秒確保 port 釋放 5. 用 controlPwshProcess start 啟動 python -m kiro_multi_agent team start (cwd: src) 6. 等待確認 Team ready 和 API started 訊息出現"
+  }
+}

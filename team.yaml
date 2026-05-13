@@ -1,0 +1,40 @@
+# Kiro Multi-Agent Team Configuration
+# 教學版本 - 上課用的muti-agent 群組
+
+channel:
+  bot_token_env: TELEGRAM_BOT_TOKEN
+  group_id: -1003998901967
+  general_topic_id: 1
+
+access:
+  mode: locked
+  allowed_users: [8458242319]
+
+defaults:
+  backend: kiro-cli
+  model: claude-opus-4.6
+
+cost_guard:
+  daily_limit_usd: 10.0
+  warn_at_percentage: 80
+  timezone: UTC
+
+hang_detector:
+  enabled: true
+  timeout_minutes: 60
+
+instances:
+  leader-agent:
+    working_directory: ./agents/leader-agent
+    description: "團隊領導 - 任務協調與分派"
+    topic_id: 3
+    role: leader
+    general_topic: true
+
+  fig-find-agent:
+    working_directory: ./agents/fig-find-agent
+    description: "GIF 搜尋助理 - 根據情緒/情境搜尋 GIF"
+    topic_id: 5
+    role: worker
+
+health_port: 8470

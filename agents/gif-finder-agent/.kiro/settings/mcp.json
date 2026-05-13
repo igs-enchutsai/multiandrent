@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "team": {
+      "command": "python",
+      "args": [
+        "-m", "kiro_multi_agent.team_mcp",
+        "--port", "8470",
+        "--instance", "gif-finder-agent",
+        "--role", "worker",
+        "--allowed-targets", ""
+      ]
+    },
+    "hoyeah": {
+      "command": "python",
+      "args": [
+        "-m", "kiro_multi_agent.hoyeah_mcp"
+      ]
+    }
+  }
+}

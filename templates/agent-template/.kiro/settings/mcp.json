@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "team": {
+      "command": "python",
+      "args": [
+        "-m", "kiro_multi_agent.team_mcp",
+        "--port", "8470",
+        "--instance", "__AGENT_NAME__",
+        "--role", "worker",
+        "--allowed-targets", ""
+      ]
+    }
+  }
+}

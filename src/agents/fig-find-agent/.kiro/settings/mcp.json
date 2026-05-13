@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "team": {
+      "command": "C:\\Windows\\py.EXE",
+      "args": [
+        "-m",
+        "kiro_multi_agent.team_mcp",
+        "--port",
+        "8470",
+        "--instance",
+        "fig-find-agent",
+        "--role",
+        "worker",
+        "--allowed-targets",
+        ""
+      ]
+    }
+  }
+}

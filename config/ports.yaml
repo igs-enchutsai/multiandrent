@@ -1,0 +1,45 @@
+# Port 分配表
+# 所有 agent 開發時需要使用 port 必須先在此登記
+# 不可自行選擇 port，避免衝突
+#
+# 規則：
+# - 8470-8499: team 核心服務
+# - 8500-8599: agent 專用服務
+# - 8600-8699: 工具/爬蟲服務
+# - 8700-8799: 開發/測試用
+
+services:
+  # ─── Team 核心服務 (8470-8499) ───
+  team-api:
+    port: 8470
+    owner: team
+    purpose: "REST API + 跨 agent 通訊"
+    status: active
+
+  # ─── Agent 專用服務 (8500-8599) ───
+  # 預留給各 agent 如果需要自己的 HTTP server
+
+  # ─── 工具服務 (8600-8699) ───
+  x-insight-web:
+    port: 8600
+    owner: x-crawler
+    purpose: "X Community Insight Web UI"
+    status: reserved
+
+  hoyeah-proxy:
+    port: 8642
+    owner: external
+    purpose: "HoYeah API (外部服務，不可佔用)"
+    status: external
+
+  # ─── 開發/測試 (8700-8799) ───
+  dev-test:
+    port: 8700
+    owner: development
+    purpose: "開發測試用"
+    status: reserved
+
+# 已知外部服務（不可佔用）
+external:
+  - port: 8642
+    note: "HoYeah API (192.168.132.54)"

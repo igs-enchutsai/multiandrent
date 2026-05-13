@@ -1,0 +1,28 @@
+{
+  "name": "x-community-insight",
+  "version": "1.0.0",
+  "description": "X/Twitter 競品社群爬蟲與玩家反饋分析工具",
+  "type": "module",
+  "scripts": {
+    "cli": "tsx apps/worker/src/cli.ts",
+    "dev:web": "cd apps/web && vite",
+    "build:web": "cd apps/web && vite build",
+    "db:init": "tsx apps/worker/src/database/migrate.ts",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "better-sqlite3": "11.7.0",
+    "commander": "12.1.0",
+    "playwright": "1.49.1",
+    "crypto-js": "4.2.0",
+    "yaml": "2.6.1",
+    "dayjs": "1.11.13"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.12",
+    "@types/node": "22.10.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}
