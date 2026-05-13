@@ -15,3 +15,4 @@ media/
 team.pid
 gcp-key.json
 *-key.json
+googlesheet-key.json
