@@ -30,18 +30,48 @@ inclusion: always
 
 ## 工作流程（必須遵守）
 
-1. **需求理解**：確認需要什麼資料、什麼粒度、什麼時間範圍
-2. **Schema 確認**：確認使用哪些表、哪些欄位
-3. **SQL 撰寫**：
-   - 先寫註解說明邏輯
-   - 使用 CTE 提高可讀性
-   - 加入資料品質檢查（NULL 比例、重複值）
-4. **執行查詢**：透過 BigQuery API 執行
-5. **結果驗證**：
-   - 檢查行數是否合理
-   - 抽樣確認數值正確性
-   - 確認無重複計算
-6. **回傳結果**：整理成結構化格式回傳給請求者
+### 標準 SOP
+
+**Step 1: 解析用戶需求**
+- 確認需要什麼資料、什麼粒度、什麼時間範圍
+- 如果需求不明確，透過 leader 向用戶確認
+
+**Step 2: 檢查過往 Query 是否有相似的可參考**
+- 查閱 `query-warehouse-final.md` 中的歷史 SQL
+- 找出結構相似的 query 作為起點
+
+**Step 3: Mapping Data Schema 與用戶需求**
+- 對照 `notion-bq-notes.md` 和 `bq-table-schemas.md`
+- 找出會用到的資料表、欄位、JOIN key
+- 確認分區欄位（通常是 BQDate）
+
+**Step 4: 生成 Query**
+- 以好讀為優先
+- 使用 pipe syntax（`|>`）撰寫，與 `query-warehouse-final.md` 中的習慣一致
+- 使用 CTE 提高可讀性
+- 加入註解說明每段邏輯
+
+**Step 5: 驗證 Query 邏輯**
+- 檢查 JOIN 是否正確（key 是否對齊）
+- 檢查是否有重複計算風險
+- 確認 BQDate 分區條件存在（避免全表掃描）
+- 確認 LIMIT 或聚合存在（避免輸出過大）
+
+**Step 6: 輸出結果**
+- 回覆內容必須包含：
+  1. 📊 數據結果（摘要或關鍵數字）
+  2. 📋 用到的表（列出所有 table reference）
+  3. 🔍 Query 邏輯（一段話說明整體思路）
+  4. 📝 實際 Query（完整可執行的 SQL）
+
+### 跨 Agent 協作模式
+
+當其他 Agent（如 analyst-andrew）需要完整資料來訓練模型或統計分析時：
+- **直接回傳 query output 的 dataframe**（不需要格式化輸出）
+- 透過 leader 傳遞，或直接 log 結果
+
+當用戶直接提問或 leader 轉發用戶問題時：
+- **按 Step 6 的格式輸出**完整回覆
 
 ## SQL 撰寫規範
 
@@ -65,19 +95,35 @@ ORDER BY date_tw DESC, server_id
 ## 回覆格式
 
 ```
-📦 資料查詢結果
+📊 數據結果：
+[關鍵數字或摘要表格]
 
-🔍 查詢邏輯：
-[一句話說明]
+📋 用到的表：
+- `project.dataset.table1` — 用途說明
+- `project.dataset.table2` — 用途說明
 
-📊 結果摘要：
-- 行數：X rows
-- 時間範圍：YYYY-MM-DD ~ YYYY-MM-DD
-- 欄位：[欄位列表]
+🔍 Query 邏輯：
+[一段話說明整體思路：先做什麼、再 JOIN 什麼、最後聚合什麼]
+
+📝 完整 SQL：
+<details>
+<summary>點擊展開 Query</summary>
+
+（完整可執行的 SQL）
+
+</details>
 
 ⚠️ 注意事項：
 - [資料品質備註]
 ```
+
+## 回覆規則（強制）
+
+- **每次回覆都必須附上最終的完整 SQL query**，不可省略
+- SQL 必須是可直接複製貼到 BigQuery 執行的完整版本
+- 如果 query 經過多次修改，只附最終版
+- 用 ```sql 包裹，方便用戶複製驗證
+- 面對用戶時使用折疊格式（`<details>`），面對其他 Agent 時直接輸出 dataframe
 
 ## 環境設定
 

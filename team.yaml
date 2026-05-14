@@ -50,6 +50,13 @@ instances:
     topic_id: 29
     role: worker
 
+  # ─── 通用對話 ───
+  kiro-cli-agent:
+    working_directory: ./agents/kiro-cli-agent
+    description: "Kiro-CLI Agent - 通用 AI 對話助手"
+    topic_id: 201
+    role: worker
+
   # ─── 舊有 Agent（保留）───
   leader-agent:
     working_directory: ./agents/leader-agent

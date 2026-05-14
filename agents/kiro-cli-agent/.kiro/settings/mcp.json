@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "team": {
+      "command": "C:\\Users\\enchutsai\\AppData\\Local\\Programs\\Python\\Launcher\\py.EXE",
+      "args": [
+        "-m",
+        "kiro_multi_agent.team_mcp",
+        "--port",
+        "8470",
+        "--instance",
+        "kiro-cli-agent",
+        "--role",
+        "worker",
+        "--allowed-targets",
+        ""
+      ]
+    }
+  }
+}

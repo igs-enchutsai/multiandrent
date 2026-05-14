@@ -1,5 +1,5 @@
 ---
-inclusion: always
+inclusion: manual
 ---
 
 # BigQuery 資料表 Schema（實際查詢結果）

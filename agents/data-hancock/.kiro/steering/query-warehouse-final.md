@@ -1,5 +1,5 @@
 ---
-inclusion: always
+inclusion: manual
 ---
 
 # Query Warehouse — 最終版本參考
@@ -10,96 +10,186 @@ inclusion: always
 **描述：** 觀察某檔搶救疲弱大客BP活動績效
 
 ```sql
--- 目標: 觀察某檔搶救疲弱大客BP活動績效
--- batch_id: '2025-11-26#26e4c'
--- in_user_id:['107103359','107220327','58950363','41759839','52731355','34635874','25765660','66477369','51654772','28819822','30034877','44939896','34140813','48926066','106145501','44427542','107104408','48926066','105075679','53063145','104478817','32041011','28207016','52090229']
-
-
--- 有買目標BP的battlepassbuylog
-select *
-from `rd7-data-big-query.bklog.BattlePassBuyLog`
-where BQDate >= '2025-11-26' and
-      BattlePassID = concat('bp_', 
-                            (select distinct EventName
-                            from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
-                            where BQDate >= '2025-11-26' and BatchID = '2025-11-26#26e4c')
-                            );
-
-
--- 目標大客在目標BP活動的任務完成率
-select UserID, Max(MissionPriority) + 1 as max_completelevel
-from `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
-where BQDate >= '2025-11-26' and 
-      BatchID = '2025-11-26#26e4c'
-group by UserID;
-
--- 搶救活動的獎勵領取狀況
-select UserID, MAX(MissionPriority) + 1 as reward_maxlevel
-from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-where BQDate >= '2025-11-26' and
-      BatchID = '2025-11-26#26e4c'
-group by 1;
-
-
--- 目標大客的活躍天數
-select UserID, COUNT( distinct LoginDate) as login_days
-from `rd7-data-big-query.bklog.SessionActive`
-where BQDate >= '2025-11-26' and
-      UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
-group by 1;
-
-
--- 目標大客在魚機的遊玩情況
-select UserID, TableTypeID, SUM(TotalBet) as total_bet, SUM(TotalBetTimes) as total_bet_counts, SUM(TotalWin) as total_win
-from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-where BQDate >= '2025-11-26' and
-      UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
-group by 1, 2;
-
-
--- 目標大客是否因該檔活動而又活躍起來玩 (活動在11/26晚上上的，觀察目標大客在 11/25往前四天 以及 11/27往後四天 的遊玩情況)
-select UserID, TableTypeID, SUM(TotalBet) as total_bet, SUM(TotalBetTimes) as total_bet_counts, SUM(TotalWin) as total_win, 'before' as timing
-from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-where BQDate BETWEEN '2025-11-22' AND '2025-11-25' and
-      UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
-group by 1, 2
-
-UNION ALL
-
-select UserID, TableTypeID, SUM(TotalBet) as total_bet, SUM(TotalBetTimes) as total_bet_counts, SUM(TotalWin) as total_win, 'after' as timing
-from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-where BQDate BETWEEN '2025-11-27' AND '2025-11-30' and
-      UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
-group by 1, 2
-;
-
-
---  目標大客在上搶救活動前後四天的營收貢獻
-select UserID, SUM(BuyNumber) + (SUM(TotalCoinReceived) - SUM(TotalCoinSent)) / 4000000 as contribution, 'before' as timing
-from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-where UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229) and
-      BQDate BETWEEN '2025-11-22' AND '2025-11-25'
-group by UserID
-
-UNION ALL 
-
-select UserID, SUM(BuyNumber) + (SUM(TotalCoinReceived) - SUM(TotalCoinSent)) / 4000000 as contribution, 'after' as timing 
-from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-where UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229) and
-      BQDate BETWEEN '2025-11-27' AND '2025-11-30'
-group by UserID;
-
-
-
--- 水位
-select *
-from (
-  select *, row_number() over(partition by UserID order by BQDate DESC) as recent
-  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-  where BQDate >= '2025-11-01' and 
-        UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
-  )
-where recent = 1
+-- 目標: 觀察某檔搶救疲弱大客BP活動績效
+
+-- batch_id: '2025-11-26#26e4c'
+
+-- in_user_id:['107103359','107220327','58950363','41759839','52731355','34635874','25765660','66477369','51654772','28819822','30034877','44939896','34140813','48926066','106145501','44427542','107104408','48926066','105075679','53063145','104478817','32041011','28207016','52090229']
+
+
+
+
+
+-- 有買目標BP的battlepassbuylog
+
+select *
+
+from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+where BQDate >= '2025-11-26' and
+
+      BattlePassID = concat('bp_', 
+
+                            (select distinct EventName
+
+                            from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+                            where BQDate >= '2025-11-26' and BatchID = '2025-11-26#26e4c')
+
+                            );
+
+
+
+
+
+-- 目標大客在目標BP活動的任務完成率
+
+select UserID, Max(MissionPriority) + 1 as max_completelevel
+
+from `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
+
+where BQDate >= '2025-11-26' and 
+
+      BatchID = '2025-11-26#26e4c'
+
+group by UserID;
+
+
+
+-- 搶救活動的獎勵領取狀況
+
+select UserID, MAX(MissionPriority) + 1 as reward_maxlevel
+
+from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+where BQDate >= '2025-11-26' and
+
+      BatchID = '2025-11-26#26e4c'
+
+group by 1;
+
+
+
+
+
+-- 目標大客的活躍天數
+
+select UserID, COUNT( distinct LoginDate) as login_days
+
+from `rd7-data-big-query.bklog.SessionActive`
+
+where BQDate >= '2025-11-26' and
+
+      UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
+
+group by 1;
+
+
+
+
+
+-- 目標大客在魚機的遊玩情況
+
+select UserID, TableTypeID, SUM(TotalBet) as total_bet, SUM(TotalBetTimes) as total_bet_counts, SUM(TotalWin) as total_win
+
+from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+where BQDate >= '2025-11-26' and
+
+      UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
+
+group by 1, 2;
+
+
+
+
+
+-- 目標大客是否因該檔活動而又活躍起來玩 (活動在11/26晚上上的，觀察目標大客在 11/25往前四天 以及 11/27往後四天 的遊玩情況)
+
+select UserID, TableTypeID, SUM(TotalBet) as total_bet, SUM(TotalBetTimes) as total_bet_counts, SUM(TotalWin) as total_win, 'before' as timing
+
+from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+where BQDate BETWEEN '2025-11-22' AND '2025-11-25' and
+
+      UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
+
+group by 1, 2
+
+
+
+UNION ALL
+
+
+
+select UserID, TableTypeID, SUM(TotalBet) as total_bet, SUM(TotalBetTimes) as total_bet_counts, SUM(TotalWin) as total_win, 'after' as timing
+
+from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+where BQDate BETWEEN '2025-11-27' AND '2025-11-30' and
+
+      UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
+
+group by 1, 2
+
+;
+
+
+
+
+
+--  目標大客在上搶救活動前後四天的營收貢獻
+
+select UserID, SUM(BuyNumber) + (SUM(TotalCoinReceived) - SUM(TotalCoinSent)) / 4000000 as contribution, 'before' as timing
+
+from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+where UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229) and
+
+      BQDate BETWEEN '2025-11-22' AND '2025-11-25'
+
+group by UserID
+
+
+
+UNION ALL 
+
+
+
+select UserID, SUM(BuyNumber) + (SUM(TotalCoinReceived) - SUM(TotalCoinSent)) / 4000000 as contribution, 'after' as timing 
+
+from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+where UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229) and
+
+      BQDate BETWEEN '2025-11-27' AND '2025-11-30'
+
+group by UserID;
+
+
+
+
+
+
+
+-- 水位
+
+select *
+
+from (
+
+  select *, row_number() over(partition by UserID order by BQDate DESC) as recent
+
+  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+  where BQDate >= '2025-11-01' and 
+
+        UserID in (107103359,107220327,58950363,41759839,52731355,34635874,25765660,66477369,51654772,28819822,30034877,44939896,34140813,48926066,106145501,44427542,107104408,48926066,105075679,53063145,104478817,32041011,28207016,52090229)
+
+  )
+
+where recent = 1
+
 ;
 ```
 
@@ -107,96 +197,186 @@ where recent = 1
 **描述：** 十月十一月BP分析
 
 ```sql
-DECLARE start_date DATE DEFAULT DATE('2025-10-01');
-DECLARE end_date DATE DEFAULT DATE('2025-10-31');-- DATE_SUB(CURRENT_DATE('Asia/Taipei'), INTERVAL 1 DAY);
-
-WITH battlepass_performance AS
-  (
-    SELECT 
-      BattlePassID,
-      SUBSTRING(BattlePassID, 4) AS EventName,
-      'CN' AS Market,
-      ROUND(SUM(BuyNumber),2) AS revenue,
-      COUNT(DISTINCT OrderID) AS order_counts,
-      COUNT(DISTINCT UserID) AS buyer_counts
-    FROM `rd7-data-big-query.bklog.BattlePassBuyLog`
-    WHERE BQDate BETWEEN start_date AND end_date AND Country = 'CN'
-    GROUP BY BattlePassID
-    ORDER BY　revenue DESC
-  ),
--- 以下為BP活動資訊
-  temp_table AS
-(
-  SELECT 
-    DISTINCT 
-        InGameMissionBookMark,
-        MissionBookMark,
-        ActivityType,
-        PagePriority,
-        ActivityStartTime,
-        ActivityEndTime,
-        RunDay,
-        GameType,
-        MissionFeatureCHT,
-        GameCategory,
-        BattlePassBuyNumber,
-        PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(EventName, r'_(\d{8})_')) as which_round,
-        EventName,
-        BatchID,
-        BatchIDTs,
-  FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
-  WHERE BQDate BETWEEN start_date AND end_date AND CountryOperation = 'for' AND Country = 'CN'
-), 
-  partitioned_temp AS -- 標示出 eventname 重複的: 活動上錯後關掉馬上重上就會有同樣eventname的情況產生
-( 
-  SELECT *, ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
-  FROM temp_table
-),
-  battlepass_info AS -- 消除同樣EventName但在不同時間上的並取最新的
-(
-  SELECT *,
-    CASE 
-      WHEN ActivityEndTime > end_date and ActivityStartTime < start_date THEN DATE_DIFF(end_date, start_date, DAY) + 1
-      WHEN ActivityEndTime > end_date and ActivityStartTime >= start_date THEN DATE_DIFF(end_date, ActivityStartTime, DAY) + 1
-      WHEN ActivityEndTime <= end_date and ActivityStartTime < start_date THEN DATE_DIFF(ActivityEndTime, start_date, DAY) + 1
-      WHEN ActivityEndTime <= end_date and ActivityStartTime >= start_date THEN DATE_DIFF(ActivityEndTime, ActivityStartTime, DAY) + 1
-    END AS ActivityDuration
-  FROM partitioned_temp
-  WHERE recent_rank = 1
-),
-  battlepass_InfoAndPerformance AS -- 每個EventName的績效和其屬於MissionBookMark的資訊
-(
-  SELECT *
-  FROM battlepass_performance bp
-  LEFT JOIN battlepass_info bi
-    ON bp.EventName = bi.EventName
-), FinalCalculations AS -- 為了計算 ActivityType 內活動們各自日均收入的平均，作為該 ActivityType 的 performance 指標
-(
-  SELECT 
-        *,
-      SUM(revenue) OVER(PARTITION BY BatchID) AS batch_totalrevenue, -- 因為不同次上的活動有機會會有同樣的MissionBookMark，故使用BatchID確保同一次活動
-      SUM(order_counts) OVER (PARTITION BY BatchID) AS batch_totalordercounts,
-      AVG(ActivityDuration) OVER (PARTITION BY BatchID) AS batch_duration,
-      ROW_NUMBER() OVER(PARTITION BY BatchID ORDER BY which_round DESC) AS label -- 建議在 ROW_NUMBER() 中加入 ORDER BY 以確保 label = 1 的結果一致
-  FROM battlepass_InfoAndPerformance
-)
-
-
-SELECT
-    *,
-    
-    -- 每個活動的 日均收入：只有 label = 1 時才計算，否則為 NULL
-    CASE 
-        WHEN label = 1 THEN SAFE_DIVIDE(batch_totalrevenue, batch_duration)
-        ELSE NULL
-    END AS batch_dailyavg_revenue,
-    
-    -- 每個活動的 日均訂單數：只有 label = 1 時才計算，否則為 NULL
-    CASE 
-        WHEN label = 1 THEN SAFE_DIVIDE(batch_totalordercounts, batch_duration)
-        ELSE NULL
-    END AS batch_dailyavg_ordercounts
-FROM
+DECLARE start_date DATE DEFAULT DATE('2025-10-01');
+
+DECLARE end_date DATE DEFAULT DATE('2025-10-31');-- DATE_SUB(CURRENT_DATE('Asia/Taipei'), INTERVAL 1 DAY);
+
+
+
+WITH battlepass_performance AS
+
+  (
+
+    SELECT 
+
+      BattlePassID,
+
+      SUBSTRING(BattlePassID, 4) AS EventName,
+
+      'CN' AS Market,
+
+      ROUND(SUM(BuyNumber),2) AS revenue,
+
+      COUNT(DISTINCT OrderID) AS order_counts,
+
+      COUNT(DISTINCT UserID) AS buyer_counts
+
+    FROM `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+    WHERE BQDate BETWEEN start_date AND end_date AND Country = 'CN'
+
+    GROUP BY BattlePassID
+
+    ORDER BY　revenue DESC
+
+  ),
+
+-- 以下為BP活動資訊
+
+  temp_table AS
+
+(
+
+  SELECT 
+
+    DISTINCT 
+
+        InGameMissionBookMark,
+
+        MissionBookMark,
+
+        ActivityType,
+
+        PagePriority,
+
+        ActivityStartTime,
+
+        ActivityEndTime,
+
+        RunDay,
+
+        GameType,
+
+        MissionFeatureCHT,
+
+        GameCategory,
+
+        BattlePassBuyNumber,
+
+        PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(EventName, r'_(\d{8})_')) as which_round,
+
+        EventName,
+
+        BatchID,
+
+        BatchIDTs,
+
+  FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+  WHERE BQDate BETWEEN start_date AND end_date AND CountryOperation = 'for' AND Country = 'CN'
+
+), 
+
+  partitioned_temp AS -- 標示出 eventname 重複的: 活動上錯後關掉馬上重上就會有同樣eventname的情況產生
+
+( 
+
+  SELECT *, ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
+
+  FROM temp_table
+
+),
+
+  battlepass_info AS -- 消除同樣EventName但在不同時間上的並取最新的
+
+(
+
+  SELECT *,
+
+    CASE 
+
+      WHEN ActivityEndTime > end_date and ActivityStartTime < start_date THEN DATE_DIFF(end_date, start_date, DAY) + 1
+
+      WHEN ActivityEndTime > end_date and ActivityStartTime >= start_date THEN DATE_DIFF(end_date, ActivityStartTime, DAY) + 1
+
+      WHEN ActivityEndTime <= end_date and ActivityStartTime < start_date THEN DATE_DIFF(ActivityEndTime, start_date, DAY) + 1
+
+      WHEN ActivityEndTime <= end_date and ActivityStartTime >= start_date THEN DATE_DIFF(ActivityEndTime, ActivityStartTime, DAY) + 1
+
+    END AS ActivityDuration
+
+  FROM partitioned_temp
+
+  WHERE recent_rank = 1
+
+),
+
+  battlepass_InfoAndPerformance AS -- 每個EventName的績效和其屬於MissionBookMark的資訊
+
+(
+
+  SELECT *
+
+  FROM battlepass_performance bp
+
+  LEFT JOIN battlepass_info bi
+
+    ON bp.EventName = bi.EventName
+
+), FinalCalculations AS -- 為了計算 ActivityType 內活動們各自日均收入的平均，作為該 ActivityType 的 performance 指標
+
+(
+
+  SELECT 
+
+        *,
+
+      SUM(revenue) OVER(PARTITION BY BatchID) AS batch_totalrevenue, -- 因為不同次上的活動有機會會有同樣的MissionBookMark，故使用BatchID確保同一次活動
+
+      SUM(order_counts) OVER (PARTITION BY BatchID) AS batch_totalordercounts,
+
+      AVG(ActivityDuration) OVER (PARTITION BY BatchID) AS batch_duration,
+
+      ROW_NUMBER() OVER(PARTITION BY BatchID ORDER BY which_round DESC) AS label -- 建議在 ROW_NUMBER() 中加入 ORDER BY 以確保 label = 1 的結果一致
+
+  FROM battlepass_InfoAndPerformance
+
+)
+
+
+
+
+
+SELECT
+
+    *,
+
+    
+
+    -- 每個活動的 日均收入：只有 label = 1 時才計算，否則為 NULL
+
+    CASE 
+
+        WHEN label = 1 THEN SAFE_DIVIDE(batch_totalrevenue, batch_duration)
+
+        ELSE NULL
+
+    END AS batch_dailyavg_revenue,
+
+    
+
+    -- 每個活動的 日均訂單數：只有 label = 1 時才計算，否則為 NULL
+
+    CASE 
+
+        WHEN label = 1 THEN SAFE_DIVIDE(batch_totalordercounts, batch_duration)
+
+        ELSE NULL
+
+    END AS batch_dailyavg_ordercounts
+
+FROM
+
     FinalCalculations
 ```
 
@@ -923,230 +1103,454 @@ SELECT * FROM hunt_final;
 **描述：** 十月十一月BP主要收入來源的慶典BP風險分析2
 
 ```sql
--- 目的: 找出為甚麼三慶典套利玩家都玩到中間的關卡
--- 'AA_魚慶典_排除負貢獻_七日_CN_v23456', 'AA_獵慶典_七日_CN_v23456', 'AA_惡慶典_七日_CN_v23456'
--- ('2025-11-02#20f83', '2025-11-23#97d74'), '2025-11-02#59c76', '2025-11-02#47edf'
-with 
--------------------惡慶典始--------------------- 
-     devil_buyer_buyround_flag as ( -- 惡慶典誰買了哪個round、該買家是否為風險玩家
-      select a.*, case when c.UserID is null then 0 else 1 end as flag
-      from (
-                  select UserID, 
-                         BattlePassID,
-                         concat(UserID, BattlePassID) as buyer_buyround,
-                         CASE 
-                              WHEN PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(BattlePassID, r'_(\d{8})_')) = DATE('2025-11-02') THEN DATE('2025-11-02')
-                              WHEN PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(BattlePassID, r'_(\d{8})_')) = DATE('2025-11-09') THEN DATE('2025-11-09')
-                              WHEN PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(BattlePassID, r'_(\d{8})_')) = DATE('2025-11-16') THEN DATE('2025-11-16')
-                              WHEN PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(BattlePassID, r'_(\d{8})_')) = DATE('2025-11-23') THEN DATE('2025-11-23')
-                         ELSE DATE('2025-11-30')
-                              END AS which_round,
-                        
-                  from `rd7-data-big-query.bklog.BattlePassBuyLog`
-                  where BQDate > '2025-11-01' and BattlePassID IN ( select distinct concat('bp_', EventName) 
-                                                                    from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
-                                                                    where BQDate > '2025-11-01' and BatchID = '2025-11-02#47edf')
-            ) a
-      left join(
-                  select distinct UserID
-                  from `rd7-data-big-query.kuochinfu.NewNESockPuppetUserLog`
-            ) as c
-            on a.UserID=c.UserID
-     
-     
-      ), devil_buyer_maxlevel as ( -- devil_buyer_buyround_flag 加上惡慶典買家在買的那期最高玩到第幾關     
-      select a.*, b.EventName, b.max_complete_level
-      from devil_buyer_buyround_flag a 
-      left join 
-            (
-                  SELECT UserID, EventName, concat(UserID, 'bp_', EventName) as user_completeround, MAX(MissionPriority) + 1 AS max_complete_level -- 有買惡慶典的在所有惡慶典rounds的最高等級
-                  FROM `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
-                  WHERE BQDate > '2025-11-01'
-                        AND BatchID = '2025-11-02#47edf'
-                        AND UserID IN (
-                              select distinct UserID 
-                              from devil_buyer_buyround_flag
-                              )
-                  GROUP BY 1, 2, 3
-            ) b
-            
-            on a.buyer_buyround = b.user_completeround
-      ), devil_buyer_reward  as ( -- 惡慶典買家在買的那期領到的免費獎勵與黃金獎勵
-      select UserID, EventName, sum( case when BattlePass = 0 then RewardValue else 0 end ) as basic_reward,  sum( case when BattlePass = 1 then RewardValue else 0 end ) as gold_reward
-      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-      where EventName = (
-            select distinct substr(BattlePassID, 4) as EventName 
-            from devil_buyer_buyround_flag  
-            order by EventName 
-            limit 1
-            )
-            AND UserID in (
-                  select distinct UserID 
-                  from devil_buyer_buyround_flag 
-                  where which_round = (
-                        select distinct which_round 
-                        from devil_buyer_buyround_flag 
-                        order by which_round 
-                        limit 1)
-                        ) 
-            AND RewardType = 1
-      group by 1, 2
-      UNION ALL
-      select UserID, EventName, sum( case when BattlePass = 0 then RewardValue else 0 end ) as basic_reward,  sum( case when BattlePass = 1 then RewardValue else 0 end ) as gold_reward
-      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-      where EventName = (select distinct substr(BattlePassID, 4) as EventName from devil_buyer_buyround_flag  order by EventName limit 1 offset 1)
-      AND
-            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = (select distinct which_round from devil_buyer_buyround_flag order by which_round limit 1 offset 1)) AND
-            RewardType = 1
-      group by 1, 2
-      UNION ALL
-      select UserID, EventName, sum( case when BattlePass = 0 then RewardValue else 0 end ) as basic_reward,  sum( case when BattlePass = 1 then RewardValue else 0 end ) as gold_reward
-      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-      where EventName = (select distinct substr(BattlePassID, 4) as EventName from devil_buyer_buyround_flag  order by EventName limit 1 offset 2)AND
-            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = (select distinct which_round from devil_buyer_buyround_flag order by which_round limit 1 offset 2)) AND
-            RewardType = 1
-      group by 1, 2
-      UNION ALL
-      select UserID, EventName, sum( case when BattlePass = 0 then RewardValue else 0 end ) as basic_reward,  sum( case when BattlePass = 1 then RewardValue else 0 end ) as gold_reward
-      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-      where EventName = (select distinct substr(BattlePassID, 4) as EventName from devil_buyer_buyround_flag  order by EventName limit 1 offset 3)AND
-            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = (select distinct which_round from devil_buyer_buyround_flag order by which_round limit 1 offset 3)) AND
-            RewardType = 1
-      group by 1, 2
-      ), devil_buyer_ingame AS ( -- 惡慶典玩家在購買當期BP時，實際在魚機遊玩的數據
-      select UserID, DATE('2025-11-02') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
-      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
-      where BQDate BETWEEN '2025-11-02' AND '2025-11-08' and 
-            TableTypeID = 9 and 
-            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-02')
-      group by 1
-      UNION ALL
-      select UserID, DATE('2025-11-09') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
-      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
-      where BQDate BETWEEN '2025-11-09' AND '2025-11-15' and 
-            TableTypeID = 9 and 
-            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-09')
-      group by 1
-      UNION ALL
-      select UserID, DATE('2025-11-16') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
-      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
-      where BQDate BETWEEN '2025-11-16' AND '2025-11-22' and 
-            TableTypeID = 9 and 
-            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-16')
-      group by 1
-      UNION ALL
-      select UserID, DATE('2025-11-23') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
-      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
-      where BQDate BETWEEN '2025-11-23' AND '2025-11-29' and 
-            TableTypeID = 9 and 
-            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-23')
-      group by 1
-      UNION ALL
-      select UserID, DATE('2025-11-30') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
-      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
-      where BQDate BETWEEN '2025-11-30' AND '2025-12-06' and 
-            TableTypeID = 9 and 
-            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-30')
-      group by 1
-      )
-
-select 'devil' as MissionBookMark, m.UserID, m.BattlePassID, m.EventName, m.which_round, m.flag, m.max_complete_level,
-      r.basic_reward, r.gold_reward, i.total_bet, i.total_win, i.total_bet_times, i.avg_bet_pershoot 
-from devil_buyer_maxlevel m
-join devil_buyer_reward r
-      on  m.UserID = r.UserID and m.EventName = r.EventName
-join devil_buyer_ingame i
-      on m.UserID = i.UserID  and m.which_round = i.which_round
-
-
-
-
-
-
-
-
-
-
-;
---------- 以下為查詢惡慶典風險玩家的遊玩時間與購買惡慶典時間，為判斷是玩到第幾關才買
-select UserID, DATETIME(TIMESTAMP_SECONDS(LastEventTime)) as last_bet_time,  SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, 
-       SUM(TotalBetTimes) as total_bet_time, sum(CancelBet) as CancelBet
-from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
-where BQDate BETWEEN '2025-11-01' AND '2025-11-25' and 
-      TableTypeID = 9 and 
-      UserID in (62808043,106033403,106094009,106304247,106384953,106431718,106474953,106485462,106502823,106517265,106536821,106544675,106550565)
-group by 1, 2
-order by UserID, last_bet_time desc ;
-
-
-
-select UserID, DATETIME(TIMESTAMP_SECONDS(EventTime)) as buy_time
-from `rd7-data-big-query.bklog.BattlePassBuyLog`
-where BattlePassID in (select distinct concat('bp_', EventName) from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog` where BatchID = '2025-11-02#47edf')  and 
-      UserID in (62808043,106033403,106094009,106304247,106384953,106431718,106474953,106485462,106502823,106517265,106536821,106544675,106550565)
-order by UserID, buy_time desc;
-
-
-
-
-
-
-
-
--- WITH bp_info AS (
---     SELECT DISTINCT MissionBookMark, CONCAT('bp_', EventName) AS BattlePassID, ActivityStartTime, ActivityEndTime, MissionPriority, TargetTimes, VipLV, MissionValue, BPMissionValue, MissionCardValue, BPMissionCardValue
---     FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
---     WHERE BQDate BETWEEN '2025-11-01' AND '2025-11-23'
---           AND BatchID in  ('2025-11-02#20f83', '2025-11-23#97d74', '2025-11-02#59c76', '2025-11-02#47edf')
---   ), bp_buyerinfo AS ( -- main table: 誰買了哪一檔期、是否曾為風險人物
-    
---     SELECT a.UserID, VipLV, BattlePassID, CONCAT(a.UserID, BattlePassID) AS buyer_item, CASE WHEN b.UserID IS NOT NULL THEN 1 ELSE 0 END AS risk_user
---     FROM (
---       SELECT UserID, VipLV, BattlePassID, CONCAT(UserID, BattlePassID) AS buyer_item
---       FROM `rd7-data-big-query.bklog.BattlePassBuyLog`
---       WHERE BQDate BETWEEN '2025-11-01' AND '2025-11-23'
---             AND BattlePassID IN (select distinct BattlePassID from bp_info)
---     ) a
---     LEFT JOIN 
---       (
---         SELECT DISTINCT UserID
---         FROM `rd7-data-big-query.kuochinfu.NewNESockPuppetUserLog`
---       ) as b
---       ON a.UserID = b.UserID
-
---   ), bp_buyerProgress AS ( -- 只要有購買任一檔的人的所有活動進度，故包含了沒買的活動進度
---     SELECT UserID, EventName, CONCAT(UserID, 'bp_', EventName) AS user_item, MAX(MissionPriority) AS max_complete_level 
---     FROM `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
---     WHERE BQDate > '2025-11-01'
---           AND BatchID IN ('2025-11-02#20f83', '2025-11-23#97d74', '2025-11-02#59c76', '2025-11-02#47edf')
---           AND UserID IN (SELECT DISTINCT UserID FROM bp_buyerinfo)
---     GROUP BY 1, 2, 3
---  )--, bp_buyerReward AS ( 
---   --   SELECT UserID, EventName, UserItem, SUM(CASE WHEN BattlePass = 0 THEN RewardValue ELSE 0 END) AS free_rebate, SUM(CASE WHEN BattlePass = 1 THEN RewardValue ELSE 0 END) AS buy_rebate
---   --   FROM (
---   --         SELECT *, CONCAT(UserID, 'bp_', EventName) AS UserItem
---   --         FROM `rd7-data-big-query.bklog.ActivityMissionRewardLog` 
---   --         WHERE BQDate >= '2025-11-01' 
---   --               AND  UserID IN (SELECT DISTINCT UserID FROM bp_buyerinfo)
---   --               AND BatchID IN ('2025-11-02#20f83', '2025-11-23#97d74', '2025-11-02#59c76', '2025-11-02#47edf')
---   --               AND RewardType = 1
---   --         ) a
---   --   RIGHT JOIN 
---   --        (
---   --         SELECT　buyer_item 
---   --         FROM bp_buyerinfo
---   --         ) b
---   --     ON a.UserItem = b.buyer_item
---   --   GROUP BY 1, 2, 3
---   -- )
-
---   SELECT bbi.UserID, bbi.risk_user, bbi.VipLV, bbi.BattlePassID, bbp.max_complete_level, missionbookmark, ActivityStartTime, ActivityEndTime,
---         SUM(CASE WHEN MissionPriority <= bbp.max_complete_level AND bbi.VipLV = bp_info.VipLV THEN  MissionValue + BPMissionValue - MissionCardValue - BPMissionCardValue END) AS rebate
---   FROM bp_buyerinfo bbi
---   LEFT JOIN bp_buyerProgress bbp
---     ON bbi.buyer_item = bbp.user_item
---   LEFT JOIN bp_info
---    ON bbi.BattlePassID = bp_info.BattlePassID
+-- 目的: 找出為甚麼三慶典套利玩家都玩到中間的關卡
+
+-- 'AA_魚慶典_排除負貢獻_七日_CN_v23456', 'AA_獵慶典_七日_CN_v23456', 'AA_惡慶典_七日_CN_v23456'
+
+-- ('2025-11-02#20f83', '2025-11-23#97d74'), '2025-11-02#59c76', '2025-11-02#47edf'
+
+with 
+
+-------------------惡慶典始--------------------- 
+
+     devil_buyer_buyround_flag as ( -- 惡慶典誰買了哪個round、該買家是否為風險玩家
+
+      select a.*, case when c.UserID is null then 0 else 1 end as flag
+
+      from (
+
+                  select UserID, 
+
+                         BattlePassID,
+
+                         concat(UserID, BattlePassID) as buyer_buyround,
+
+                         CASE 
+
+                              WHEN PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(BattlePassID, r'_(\d{8})_')) = DATE('2025-11-02') THEN DATE('2025-11-02')
+
+                              WHEN PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(BattlePassID, r'_(\d{8})_')) = DATE('2025-11-09') THEN DATE('2025-11-09')
+
+                              WHEN PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(BattlePassID, r'_(\d{8})_')) = DATE('2025-11-16') THEN DATE('2025-11-16')
+
+                              WHEN PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(BattlePassID, r'_(\d{8})_')) = DATE('2025-11-23') THEN DATE('2025-11-23')
+
+                         ELSE DATE('2025-11-30')
+
+                              END AS which_round,
+
+                        
+
+                  from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+                  where BQDate > '2025-11-01' and BattlePassID IN ( select distinct concat('bp_', EventName) 
+
+                                                                    from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+                                                                    where BQDate > '2025-11-01' and BatchID = '2025-11-02#47edf')
+
+            ) a
+
+      left join(
+
+                  select distinct UserID
+
+                  from `rd7-data-big-query.kuochinfu.NewNESockPuppetUserLog`
+
+            ) as c
+
+            on a.UserID=c.UserID
+
+     
+
+     
+
+      ), devil_buyer_maxlevel as ( -- devil_buyer_buyround_flag 加上惡慶典買家在買的那期最高玩到第幾關     
+
+      select a.*, b.EventName, b.max_complete_level
+
+      from devil_buyer_buyround_flag a 
+
+      left join 
+
+            (
+
+                  SELECT UserID, EventName, concat(UserID, 'bp_', EventName) as user_completeround, MAX(MissionPriority) + 1 AS max_complete_level -- 有買惡慶典的在所有惡慶典rounds的最高等級
+
+                  FROM `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
+
+                  WHERE BQDate > '2025-11-01'
+
+                        AND BatchID = '2025-11-02#47edf'
+
+                        AND UserID IN (
+
+                              select distinct UserID 
+
+                              from devil_buyer_buyround_flag
+
+                              )
+
+                  GROUP BY 1, 2, 3
+
+            ) b
+
+            
+
+            on a.buyer_buyround = b.user_completeround
+
+      ), devil_buyer_reward  as ( -- 惡慶典買家在買的那期領到的免費獎勵與黃金獎勵
+
+      select UserID, EventName, sum( case when BattlePass = 0 then RewardValue else 0 end ) as basic_reward,  sum( case when BattlePass = 1 then RewardValue else 0 end ) as gold_reward
+
+      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+      where EventName = (
+
+            select distinct substr(BattlePassID, 4) as EventName 
+
+            from devil_buyer_buyround_flag  
+
+            order by EventName 
+
+            limit 1
+
+            )
+
+            AND UserID in (
+
+                  select distinct UserID 
+
+                  from devil_buyer_buyround_flag 
+
+                  where which_round = (
+
+                        select distinct which_round 
+
+                        from devil_buyer_buyround_flag 
+
+                        order by which_round 
+
+                        limit 1)
+
+                        ) 
+
+            AND RewardType = 1
+
+      group by 1, 2
+
+      UNION ALL
+
+      select UserID, EventName, sum( case when BattlePass = 0 then RewardValue else 0 end ) as basic_reward,  sum( case when BattlePass = 1 then RewardValue else 0 end ) as gold_reward
+
+      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+      where EventName = (select distinct substr(BattlePassID, 4) as EventName from devil_buyer_buyround_flag  order by EventName limit 1 offset 1)
+
+      AND
+
+            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = (select distinct which_round from devil_buyer_buyround_flag order by which_round limit 1 offset 1)) AND
+
+            RewardType = 1
+
+      group by 1, 2
+
+      UNION ALL
+
+      select UserID, EventName, sum( case when BattlePass = 0 then RewardValue else 0 end ) as basic_reward,  sum( case when BattlePass = 1 then RewardValue else 0 end ) as gold_reward
+
+      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+      where EventName = (select distinct substr(BattlePassID, 4) as EventName from devil_buyer_buyround_flag  order by EventName limit 1 offset 2)AND
+
+            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = (select distinct which_round from devil_buyer_buyround_flag order by which_round limit 1 offset 2)) AND
+
+            RewardType = 1
+
+      group by 1, 2
+
+      UNION ALL
+
+      select UserID, EventName, sum( case when BattlePass = 0 then RewardValue else 0 end ) as basic_reward,  sum( case when BattlePass = 1 then RewardValue else 0 end ) as gold_reward
+
+      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+      where EventName = (select distinct substr(BattlePassID, 4) as EventName from devil_buyer_buyround_flag  order by EventName limit 1 offset 3)AND
+
+            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = (select distinct which_round from devil_buyer_buyround_flag order by which_round limit 1 offset 3)) AND
+
+            RewardType = 1
+
+      group by 1, 2
+
+      ), devil_buyer_ingame AS ( -- 惡慶典玩家在購買當期BP時，實際在魚機遊玩的數據
+
+      select UserID, DATE('2025-11-02') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
+
+      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
+
+      where BQDate BETWEEN '2025-11-02' AND '2025-11-08' and 
+
+            TableTypeID = 9 and 
+
+            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-02')
+
+      group by 1
+
+      UNION ALL
+
+      select UserID, DATE('2025-11-09') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
+
+      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
+
+      where BQDate BETWEEN '2025-11-09' AND '2025-11-15' and 
+
+            TableTypeID = 9 and 
+
+            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-09')
+
+      group by 1
+
+      UNION ALL
+
+      select UserID, DATE('2025-11-16') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
+
+      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
+
+      where BQDate BETWEEN '2025-11-16' AND '2025-11-22' and 
+
+            TableTypeID = 9 and 
+
+            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-16')
+
+      group by 1
+
+      UNION ALL
+
+      select UserID, DATE('2025-11-23') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
+
+      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
+
+      where BQDate BETWEEN '2025-11-23' AND '2025-11-29' and 
+
+            TableTypeID = 9 and 
+
+            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-23')
+
+      group by 1
+
+      UNION ALL
+
+      select UserID, DATE('2025-11-30') as which_round, SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, ROUND(AVG(BetPerShoot)) as avg_bet_pershoot, SUM(TotalBetTimes) as total_bet_times
+
+      from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
+
+      where BQDate BETWEEN '2025-11-30' AND '2025-12-06' and 
+
+            TableTypeID = 9 and 
+
+            UserID in (select distinct UserID from devil_buyer_buyround_flag where which_round = '2025-11-30')
+
+      group by 1
+
+      )
+
+
+
+select 'devil' as MissionBookMark, m.UserID, m.BattlePassID, m.EventName, m.which_round, m.flag, m.max_complete_level,
+
+      r.basic_reward, r.gold_reward, i.total_bet, i.total_win, i.total_bet_times, i.avg_bet_pershoot 
+
+from devil_buyer_maxlevel m
+
+join devil_buyer_reward r
+
+      on  m.UserID = r.UserID and m.EventName = r.EventName
+
+join devil_buyer_ingame i
+
+      on m.UserID = i.UserID  and m.which_round = i.which_round
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;
+
+--------- 以下為查詢惡慶典風險玩家的遊玩時間與購買惡慶典時間，為判斷是玩到第幾關才買
+
+select UserID, DATETIME(TIMESTAMP_SECONDS(LastEventTime)) as last_bet_time,  SUM(TotalBet) as total_bet, SUM(TotalWin) as total_win, 
+
+       SUM(TotalBetTimes) as total_bet_time, sum(CancelBet) as CancelBet
+
+from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog` 
+
+where BQDate BETWEEN '2025-11-01' AND '2025-11-25' and 
+
+      TableTypeID = 9 and 
+
+      UserID in (62808043,106033403,106094009,106304247,106384953,106431718,106474953,106485462,106502823,106517265,106536821,106544675,106550565)
+
+group by 1, 2
+
+order by UserID, last_bet_time desc ;
+
+
+
+
+
+
+
+select UserID, DATETIME(TIMESTAMP_SECONDS(EventTime)) as buy_time
+
+from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+where BattlePassID in (select distinct concat('bp_', EventName) from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog` where BatchID = '2025-11-02#47edf')  and 
+
+      UserID in (62808043,106033403,106094009,106304247,106384953,106431718,106474953,106485462,106502823,106517265,106536821,106544675,106550565)
+
+order by UserID, buy_time desc;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- WITH bp_info AS (
+
+--     SELECT DISTINCT MissionBookMark, CONCAT('bp_', EventName) AS BattlePassID, ActivityStartTime, ActivityEndTime, MissionPriority, TargetTimes, VipLV, MissionValue, BPMissionValue, MissionCardValue, BPMissionCardValue
+
+--     FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+--     WHERE BQDate BETWEEN '2025-11-01' AND '2025-11-23'
+
+--           AND BatchID in  ('2025-11-02#20f83', '2025-11-23#97d74', '2025-11-02#59c76', '2025-11-02#47edf')
+
+--   ), bp_buyerinfo AS ( -- main table: 誰買了哪一檔期、是否曾為風險人物
+
+    
+
+--     SELECT a.UserID, VipLV, BattlePassID, CONCAT(a.UserID, BattlePassID) AS buyer_item, CASE WHEN b.UserID IS NOT NULL THEN 1 ELSE 0 END AS risk_user
+
+--     FROM (
+
+--       SELECT UserID, VipLV, BattlePassID, CONCAT(UserID, BattlePassID) AS buyer_item
+
+--       FROM `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+--       WHERE BQDate BETWEEN '2025-11-01' AND '2025-11-23'
+
+--             AND BattlePassID IN (select distinct BattlePassID from bp_info)
+
+--     ) a
+
+--     LEFT JOIN 
+
+--       (
+
+--         SELECT DISTINCT UserID
+
+--         FROM `rd7-data-big-query.kuochinfu.NewNESockPuppetUserLog`
+
+--       ) as b
+
+--       ON a.UserID = b.UserID
+
+
+
+--   ), bp_buyerProgress AS ( -- 只要有購買任一檔的人的所有活動進度，故包含了沒買的活動進度
+
+--     SELECT UserID, EventName, CONCAT(UserID, 'bp_', EventName) AS user_item, MAX(MissionPriority) AS max_complete_level 
+
+--     FROM `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
+
+--     WHERE BQDate > '2025-11-01'
+
+--           AND BatchID IN ('2025-11-02#20f83', '2025-11-23#97d74', '2025-11-02#59c76', '2025-11-02#47edf')
+
+--           AND UserID IN (SELECT DISTINCT UserID FROM bp_buyerinfo)
+
+--     GROUP BY 1, 2, 3
+
+--  )--, bp_buyerReward AS ( 
+
+--   --   SELECT UserID, EventName, UserItem, SUM(CASE WHEN BattlePass = 0 THEN RewardValue ELSE 0 END) AS free_rebate, SUM(CASE WHEN BattlePass = 1 THEN RewardValue ELSE 0 END) AS buy_rebate
+
+--   --   FROM (
+
+--   --         SELECT *, CONCAT(UserID, 'bp_', EventName) AS UserItem
+
+--   --         FROM `rd7-data-big-query.bklog.ActivityMissionRewardLog` 
+
+--   --         WHERE BQDate >= '2025-11-01' 
+
+--   --               AND  UserID IN (SELECT DISTINCT UserID FROM bp_buyerinfo)
+
+--   --               AND BatchID IN ('2025-11-02#20f83', '2025-11-23#97d74', '2025-11-02#59c76', '2025-11-02#47edf')
+
+--   --               AND RewardType = 1
+
+--   --         ) a
+
+--   --   RIGHT JOIN 
+
+--   --        (
+
+--   --         SELECT　buyer_item 
+
+--   --         FROM bp_buyerinfo
+
+--   --         ) b
+
+--   --     ON a.UserItem = b.buyer_item
+
+--   --   GROUP BY 1, 2, 3
+
+--   -- )
+
+
+
+--   SELECT bbi.UserID, bbi.risk_user, bbi.VipLV, bbi.BattlePassID, bbp.max_complete_level, missionbookmark, ActivityStartTime, ActivityEndTime,
+
+--         SUM(CASE WHEN MissionPriority <= bbp.max_complete_level AND bbi.VipLV = bp_info.VipLV THEN  MissionValue + BPMissionValue - MissionCardValue - BPMissionCardValue END) AS rebate
+
+--   FROM bp_buyerinfo bbi
+
+--   LEFT JOIN bp_buyerProgress bbp
+
+--     ON bbi.buyer_item = bbp.user_item
+
+--   LEFT JOIN bp_info
+
+--    ON bbi.BattlePassID = bp_info.BattlePassID
+
 --   GROUP BY bbi.UserID, risk_user, bbi.VipLV, bbi.BattlePassID, bbp.max_complete_level, missionbookmark, ActivityStartTime, ActivityEndTime
 ```
 
@@ -1155,627 +1559,1230 @@ order by UserID, buy_time desc;
 Issue 2: 平台給予12月下旬攀升: 11月下旬跟12月下旬各個Category的平台給予狀況，找出是哪個Category高漲
 
 ```sql
--- Issue 1: 免費BP獲得在12/2, 12/19, 12/27, 12/31跟 1/2, 1/3, 1/4 漲高
-with freereward as (
-  select distinct BQDate, UserID, EventName, MissionPriority + 1 as MissionPriority, RewardValue
-  from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-  where BQDate IN (
-                  --  '2025-12-02',
-                  --  '2025-12-19', 
-                  --  '2025-12-27',
-                  --  '2025-12-31',
-                  --  '2026-01-02',
-                  --  '2026-01-03',
-                   '2026-01-04'
-                  )  and
-        BattlePass  = 0 and
-        RewardType = 1 and
-        Country = 'CN'
-), freereward_missionbookmark as (
-  select *
-  from freereward a
-  left join  (
-              select EventName, MissionBookMark 
-              from`rd7-data-big-query.preprocessed_bklog.MissionList` 
-              where ActivityStartTime >= '2025-12-01' or ActivityEndTime >= '2025-12-01'
-             ) b
-    on a.EventName = b.EventName
-), targetuser as (
-  select UserID, NewUserTag, UserTag,
-         case when UserTag != NewUserTag then 1 else 0 end as status_change
-  from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-  where BQDate = '2026-01-01' and
-        -- NewUserTag IN  ('無客', '中客') and
-        Country = 'CN'
-)
-
-select BQDate, 
-       MissionBookMark,
-      --  a.UserID,
-       b.NewUserTag,
-       count(distinct a.UserID) as usercounts,
-       sum(RewardValue) as freereward_taken,
-       -- max(MissionPriority) as reached_level
-from freereward_missionbookmark a
-inner join targetuser b
-  on a.UserID = b.UserID
-group by 1, 2, 3
-order by MissionBookMark, freereward_taken desc
-;
-
-
-
-
--- Issue 2: 平台給予12月下旬攀升: 11月下旬跟12月下旬各個Category的平台給予狀況，找出是哪個Category高漲
-with targettime as (
-select *
-from `rd7-data-big-query.bklog.SessionCoinLog`
-where BQDate >= '2026-01-01' and  
-      UserID in (select distinct UserID 
-                 from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-                 where BQDate >= '2026-01-01')
-)
-
-select -- BQDate, 
-       b.ReasonName_CHT, Category , sum(TotalCoinAwarded) as totalaward
-from targettime a
-left join `rd7-data-big-query.kuochinfu.DataTeamCoinReason` b
-  on a.CoinReason = b.CoinReasonId
-where Category = '平台給予'
-group by 1, 2
-; 
-
--- -- Issue: 免費BP獲得在2026/1/2，本月負貢獻跟本月無客暴漲
--- with targetuser as (
---   select UserID, NewUserTag, UserTag,
---          case when UserTag != NewUserTag then 1 else 0 end as status_change
---   from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
---   where BQDate = '2026-01-01' and
---         NewUserTag in ('無客', '負貢獻') and
---         Country = 'CN'
--- ), freereward as (
---   select *
---   from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
---   where BQDate = '2026-01-02' and
---         BattlePass  = 0 and
---         RewardType = 1 and
---         Country = 'CN'
--- )
-
--- select a.EventName,
---        c.MissionBookMark,
---        b.UserID, 
---        b.UserTag, 
---        b.NewUserTag,
---        b.status_change,
---        sum(RewardValue) as rewardvalue
--- from freereward a 
--- inner join targetuser b
---   on a.UserID = b.UserID
--- left join (
---           select distinct EventName, MissionBookMark
---           from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
---           where BQDate = '2026-01-02' 
---           ) c
---   on a.EventName = c.EventName
--- group by 1, 2, 3, 4, 5, 6
--- order by 7 desc
+-- Issue 1: 免費BP獲得在12/2, 12/19, 12/27, 12/31跟 1/2, 1/3, 1/4 漲高
+
+with freereward as (
+
+  select distinct BQDate, UserID, EventName, MissionPriority + 1 as MissionPriority, RewardValue
+
+  from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+  where BQDate IN (
+
+                  --  '2025-12-02',
+
+                  --  '2025-12-19', 
+
+                  --  '2025-12-27',
+
+                  --  '2025-12-31',
+
+                  --  '2026-01-02',
+
+                  --  '2026-01-03',
+
+                   '2026-01-04'
+
+                  )  and
+
+        BattlePass  = 0 and
+
+        RewardType = 1 and
+
+        Country = 'CN'
+
+), freereward_missionbookmark as (
+
+  select *
+
+  from freereward a
+
+  left join  (
+
+              select EventName, MissionBookMark 
+
+              from`rd7-data-big-query.preprocessed_bklog.MissionList` 
+
+              where ActivityStartTime >= '2025-12-01' or ActivityEndTime >= '2025-12-01'
+
+             ) b
+
+    on a.EventName = b.EventName
+
+), targetuser as (
+
+  select UserID, NewUserTag, UserTag,
+
+         case when UserTag != NewUserTag then 1 else 0 end as status_change
+
+  from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+  where BQDate = '2026-01-01' and
+
+        -- NewUserTag IN  ('無客', '中客') and
+
+        Country = 'CN'
+
+)
+
+
+
+select BQDate, 
+
+       MissionBookMark,
+
+      --  a.UserID,
+
+       b.NewUserTag,
+
+       count(distinct a.UserID) as usercounts,
+
+       sum(RewardValue) as freereward_taken,
+
+       -- max(MissionPriority) as reached_level
+
+from freereward_missionbookmark a
+
+inner join targetuser b
+
+  on a.UserID = b.UserID
+
+group by 1, 2, 3
+
+order by MissionBookMark, freereward_taken desc
+
+;
+
+
+
+
+
+
+
+
+
+-- Issue 2: 平台給予12月下旬攀升: 11月下旬跟12月下旬各個Category的平台給予狀況，找出是哪個Category高漲
+
+with targettime as (
+
+select *
+
+from `rd7-data-big-query.bklog.SessionCoinLog`
+
+where BQDate >= '2026-01-01' and  
+
+      UserID in (select distinct UserID 
+
+                 from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+                 where BQDate >= '2026-01-01')
+
+)
+
+
+
+select -- BQDate, 
+
+       b.ReasonName_CHT, Category , sum(TotalCoinAwarded) as totalaward
+
+from targettime a
+
+left join `rd7-data-big-query.kuochinfu.DataTeamCoinReason` b
+
+  on a.CoinReason = b.CoinReasonId
+
+where Category = '平台給予'
+
+group by 1, 2
+
+; 
+
+
+
+-- -- Issue: 免費BP獲得在2026/1/2，本月負貢獻跟本月無客暴漲
+
+-- with targetuser as (
+
+--   select UserID, NewUserTag, UserTag,
+
+--          case when UserTag != NewUserTag then 1 else 0 end as status_change
+
+--   from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+--   where BQDate = '2026-01-01' and
+
+--         NewUserTag in ('無客', '負貢獻') and
+
+--         Country = 'CN'
+
+-- ), freereward as (
+
+--   select *
+
+--   from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+--   where BQDate = '2026-01-02' and
+
+--         BattlePass  = 0 and
+
+--         RewardType = 1 and
+
+--         Country = 'CN'
+
+-- )
+
+
+
+-- select a.EventName,
+
+--        c.MissionBookMark,
+
+--        b.UserID, 
+
+--        b.UserTag, 
+
+--        b.NewUserTag,
+
+--        b.status_change,
+
+--        sum(RewardValue) as rewardvalue
+
+-- from freereward a 
+
+-- inner join targetuser b
+
+--   on a.UserID = b.UserID
+
+-- left join (
+
+--           select distinct EventName, MissionBookMark
+
+--           from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+--           where BQDate = '2026-01-02' 
+
+--           ) c
+
+--   on a.EventName = c.EventName
+
+-- group by 1, 2, 3, 4, 5, 6
+
+-- order by 7 desc
+
 -- ;
 ```
 
 ## [Analysis] 20251117魚機板更等待時間
 
 ```sql
-with personal_average as (
-  -- 顆粒度:同一user、同一版本、同一機台的平均等待時間 
-  select a.*, b.GameName_CHT
-  from (
-    select UserID, PublishVer, GameID, count(*) as click_counts, avg(waiting_time) as average_waiting_time 
-    from (
-      select UserID, 
-            PublishVer,
-            GameID,
-            TIMESTAMP_SECONDS(EventTime) AS click_time,
-            cast(ClickEventData1 as float64) as waiting_time,  
-            row_number() OVER(PARTITION BY UserID, PublishVer, GameID ORDER BY EventTime) as click_order
-      from `rd7-data-big-query.bklog.ClickLog`
-      where BQDate >= '2025-11-20' and
-            UserID not in (select UserID from `rd7-data-big-query.App_Dragon.GameAccount`) and -- 排除公司測試機UserID 
-            ClickEventID = 1285 and -- 1285代表點擊魚廳館(任一廳館)
-            PublishVer IN ('4.4.1', '4.4.2')
-    )
-    where click_order != 1
-    group by UserID, PublishVer, GameID
-  )  as a
-  left join `rd7-data-big-query.MobileDW_Dragon.DimGame_ID` as b
-    on a.GameID = b.GameID
-)
-
--- 資料顆粒度到版本
-select PublishVer, 
-       round(avg(average_waiting_time), 3) as avg_waiting_time,
-       round(max(median_average_waiting_time), 3) as median_waiting_time, -- any aggregate could apply
-       round(stddev(average_waiting_time), 3) as stdev_waiting_time,
-       sum(click_counts) as total_click_counts,
-from (
-  select *, 
-         percentile_cont(average_waiting_time, 0.5) over(partition by PublishVer) as median_average_waiting_time
-  from personal_average
-)
-group by PublishVer;
-
-
-
-----------------------------分隔線--------------------------------
-with personal_average as (
-  -- 顆粒度:同一user、同一版本、同一機台的平均等待時間 
-  select a.*, b.GameName_CHT
-  from (
-    select UserID, PublishVer, GameID, count(*) as click_counts, avg(waiting_time) as average_waiting_time 
-    from (
-      select UserID, 
-            PublishVer,
-            GameID,
-            TIMESTAMP_SECONDS(EventTime) AS click_time,
-            cast(ClickEventData1 as float64) as waiting_time,  
-            row_number() OVER(PARTITION BY UserID, PublishVer, GameID ORDER BY EventTime) as click_order
-      from `rd7-data-big-query.bklog.ClickLog`
-      where BQDate >= '2025-11-20' and
-            UserID not in (select UserID from `rd7-data-big-query.App_Dragon.GameAccount`) and -- 排除公司測試機UserID 
-            ClickEventID = 1285 and -- 1285代表點擊魚廳館(任一廳館)
-            PublishVer IN ('4.4.1', '4.4.2')
-    )
-    where click_order != 1
-    group by UserID, PublishVer, GameID
-  )  as a
-  left join `rd7-data-big-query.MobileDW_Dragon.DimGame_ID` as b
-    on a.GameID = b.GameID
-)
-
--- 資料顆粒度到版本和機台
-select PublishVer, GameName_CHT,
-       round(avg(average_waiting_time), 3) as avg_waiting_time,
-       round(max(median_average_waiting_time), 3) as median_waiting_time, -- any aggregate could apply
-       round(stddev(average_waiting_time), 3) as stdev_waiting_time,
-       sum(click_counts) as total_click_counts,
-from (
-  select *, 
-         percentile_cont(average_waiting_time, 0.5) over(partition by PublishVer, GameName_CHT) as median_average_waiting_time
-  from personal_average
-)
-group by PublishVer, GameName_CHT
+with personal_average as (
+
+  -- 顆粒度:同一user、同一版本、同一機台的平均等待時間 
+
+  select a.*, b.GameName_CHT
+
+  from (
+
+    select UserID, PublishVer, GameID, count(*) as click_counts, avg(waiting_time) as average_waiting_time 
+
+    from (
+
+      select UserID, 
+
+            PublishVer,
+
+            GameID,
+
+            TIMESTAMP_SECONDS(EventTime) AS click_time,
+
+            cast(ClickEventData1 as float64) as waiting_time,  
+
+            row_number() OVER(PARTITION BY UserID, PublishVer, GameID ORDER BY EventTime) as click_order
+
+      from `rd7-data-big-query.bklog.ClickLog`
+
+      where BQDate >= '2025-11-20' and
+
+            UserID not in (select UserID from `rd7-data-big-query.App_Dragon.GameAccount`) and -- 排除公司測試機UserID 
+
+            ClickEventID = 1285 and -- 1285代表點擊魚廳館(任一廳館)
+
+            PublishVer IN ('4.4.1', '4.4.2')
+
+    )
+
+    where click_order != 1
+
+    group by UserID, PublishVer, GameID
+
+  )  as a
+
+  left join `rd7-data-big-query.MobileDW_Dragon.DimGame_ID` as b
+
+    on a.GameID = b.GameID
+
+)
+
+
+
+-- 資料顆粒度到版本
+
+select PublishVer, 
+
+       round(avg(average_waiting_time), 3) as avg_waiting_time,
+
+       round(max(median_average_waiting_time), 3) as median_waiting_time, -- any aggregate could apply
+
+       round(stddev(average_waiting_time), 3) as stdev_waiting_time,
+
+       sum(click_counts) as total_click_counts,
+
+from (
+
+  select *, 
+
+         percentile_cont(average_waiting_time, 0.5) over(partition by PublishVer) as median_average_waiting_time
+
+  from personal_average
+
+)
+
+group by PublishVer;
+
+
+
+
+
+
+
+----------------------------分隔線--------------------------------
+
+with personal_average as (
+
+  -- 顆粒度:同一user、同一版本、同一機台的平均等待時間 
+
+  select a.*, b.GameName_CHT
+
+  from (
+
+    select UserID, PublishVer, GameID, count(*) as click_counts, avg(waiting_time) as average_waiting_time 
+
+    from (
+
+      select UserID, 
+
+            PublishVer,
+
+            GameID,
+
+            TIMESTAMP_SECONDS(EventTime) AS click_time,
+
+            cast(ClickEventData1 as float64) as waiting_time,  
+
+            row_number() OVER(PARTITION BY UserID, PublishVer, GameID ORDER BY EventTime) as click_order
+
+      from `rd7-data-big-query.bklog.ClickLog`
+
+      where BQDate >= '2025-11-20' and
+
+            UserID not in (select UserID from `rd7-data-big-query.App_Dragon.GameAccount`) and -- 排除公司測試機UserID 
+
+            ClickEventID = 1285 and -- 1285代表點擊魚廳館(任一廳館)
+
+            PublishVer IN ('4.4.1', '4.4.2')
+
+    )
+
+    where click_order != 1
+
+    group by UserID, PublishVer, GameID
+
+  )  as a
+
+  left join `rd7-data-big-query.MobileDW_Dragon.DimGame_ID` as b
+
+    on a.GameID = b.GameID
+
+)
+
+
+
+-- 資料顆粒度到版本和機台
+
+select PublishVer, GameName_CHT,
+
+       round(avg(average_waiting_time), 3) as avg_waiting_time,
+
+       round(max(median_average_waiting_time), 3) as median_waiting_time, -- any aggregate could apply
+
+       round(stddev(average_waiting_time), 3) as stdev_waiting_time,
+
+       sum(click_counts) as total_click_counts,
+
+from (
+
+  select *, 
+
+         percentile_cont(average_waiting_time, 0.5) over(partition by PublishVer, GameName_CHT) as median_average_waiting_time
+
+  from personal_average
+
+)
+
+group by PublishVer, GameName_CHT
+
 order by GameName_CHT, PublishVer;
 ```
 
 ## [Analysis] 新人第二個月BQ作業
 
 ```sql
--- 一、(每題4分) 請計算以下日均指標(日期為2025-03，國家為CN)(Hint：請多發問)：
--- 1. DAU/DNU/DOU/回流人數
-
-select round(avg(activeuser), 2) as daily_average_activeuser, 
-       round(avg(newuser), 2) as daily_average_newuser,
-       round(avg(olduser), 2) as daily_average_olduser,
-       round(avg(returnuser), 2) as daily_avg_returnuser
-from (
-  select BQDate,
-        count(UserID) as activeuser,
-        sum(case when CreateDate = BQDate then 1 else 0 end) as newuser,
-        sum(case when CreateDate != BQDate then 1 else 0 end) as olduser,
-        sum(case when CreateDate != BQDate and LastVisitDate is null then 1 else 0 end) as returnuser
-  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-  where BQDate between '2025-03-01' and '2025-03-31' AND
-        Country = 'CN'
-  group by BQDate
-);
-
--- 2. +1/+3/+7/+14/+30留存率
-
-with march_april_cn_user as (
-      select BQDate, UserID
-      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-      where BQDate between '2025-03-01' and '2025-04-30' AND
-            Country = 'CN'
-), temp_table as (
-      select a.*, 
-            b.BQDate as active_date,
-            date_diff(b.BQDate, a.BQDate, day) as diff_day
-      from march_april_cn_user a
-      left join march_april_cn_user b
-            on a.UserID = b.UserID
-      where a.BQDate != b.BQDate
-      order by a.BQDate, a.UserID, active_date
-), final as (
-      select BQDate,
-            sum(case when diff_day = 1 then 1 else 0 end) / count(distinct UserID) as oneday_retention,
-            sum(case when diff_day = 3 then 1 else 0 end) / count(distinct UserID) as threeday_retention,
-            sum(case when diff_day = 7 then 1 else 0 end) / count(distinct UserID) as sevenday_retention,
-            sum(case when diff_day = 14 then 1 else 0 end) / count(distinct UserID) as fourteenday_retention,
-            sum(case when diff_day = 30 then 1 else 0 end) / count(distinct UserID) as thirtyday_retention,
-      from temp_table
-      group by BQDate 
-)
-
-
-select round(avg(oneday_retention), 2) as daily_avg_onedayretention,
-       round(avg(threeday_retention), 2) as daily_avg_threedayretention,
-       round(avg(sevenday_retention), 2) as daily_avg_sevendayretention,
-       round(avg(fourteenday_retention), 2) as daily_avg_fourteendayretention,
-       round(avg(thirtyday_retention), 2) as daily_avg_thirtydayretention,
-from final
-where BQDate < '2025-04-01'
-;
-
--- 3. 付費人數 
-select round(avg(payer_count),2) as daily_avg_payercount
-from (
-  select BQDate, count(UserID) as payer_count
-  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-  where BQDate between '2025-03-01' and '2025-03-31' AND
-        Country = 'CN' AND
-        BuyNumber > 0
-  group by BQDate
-)
-;
--- 4. 付費率
-select round(avg(payrate), 2) as daily_avg_payrate
-from (
-  select BQDate, 
-         count(UserID) as alluser, 
-         sum(case when BuyNumber > 0 then 1 else 0 end) as payer,
-         sum(case when BuyNumber > 0 then 1 else 0 end) / count(UserID) as payrate 
-  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-  where BQDate between '2025-03-01' and '2025-03-31' AND
-        Country = 'CN'
-  group by BQDate 
-)
-;
--- 5. 總營收
-select round(avg(revenue)) as daily_avg_revenue
-from (
-  select BQDate, sum(BuyNumber) as revenue
-  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-  where BQDate between '2025-03-01' and '2025-03-31' AND
-        Country = 'CN'
-  group by BQDate 
-)
-;
-
--- 6. ARPPU/ARPU/ARDAU
-select round(avg(ARPPU), 2) as daily_avg_arppu,
-       round(avg(ARPU), 2) as daily_avg_arpu,
-       round(avg(ARDAU), 2) as daily_avg_ardau,
-from(
-      select BQDate, 
-            sum(BuyNumber) / sum(case when BuyNumber > 0 then 1 else 0 end) as ARPPU,
-            sum(BuyNumber) / count(*) as ARPU,
-            sum(BuyNumber) / count(*) as ARDAU
-      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-      where BQDate between '2025-03-01' and '2025-03-31' AND
-            Country = 'CN'
-      group by 1
-)
-;
--- 7. 虎/魚的遊玩人數 
--- 8. 虎/魚的總押量 
--- 9. 虎/魚的總贏量
--- 10. 虎/魚的總押次 
--- 11. 虎/魚的RTP
-select round(avg(slot_player_count), 2) as daily_average_slot_player_count, 
-       round(avg(fish_player_count), 2) as daily_average_fish_player_count,
-       round(avg(total_slot_bet), 2) as daily_average_total_slot_bet,
-       round(avg(total_fish_bet), 2) as daily_avg_total_fish_bet,
-       round(avg(total_slot_win), 2) as daily_average_total_slot_win, 
-       round(avg(total_fish_win), 2) as daily_average_total_fish_win,
-       round(avg(total_slot_bettimes), 2) as daily_average_total_slot_bettimes,
-       round(avg(total_fish_bettimes), 2) as daily_avg_total_fish_bettimes,
-       round(avg(slot_rtp), 2) as daily_average_slot_rtp,
-       round(avg(fish_rtp), 2) as daily_avg_fish_rtp,
-from (
-  select BQDate,
-         sum(case when SlotCoinBet != 0 then 1 else 0 end) as slot_player_count,
-         sum(case when FishCoinBet != 0 then 1 else 0 end) as fish_player_count,
-         sum(SlotCoinBet) as total_slot_bet,
-         sum(FishCoinBet) as total_fish_bet,
-         sum(SlotCoinWin) as total_slot_win,
-         sum(FishCoinWin) as total_fish_win,
-         sum(SlotCoinBetTimes) as total_slot_bettimes,
-         sum(FishCoinBetTimes) as total_fish_bettimes,
-         sum(SlotCoinWin) / sum(SlotCoinBet) as slot_rtp,
-         sum(FishCoinWin) / sum(FishCoinBet) as fish_rtp
-
-  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-  where BQDate between '2025-03-01' and '2025-03-31' AND
-        Country = 'CN'
-  group by BQDate
-);
-
-
--- 12. 虎/魚的SRTP (sessiontigershotbetwinlog, sessionbetwinlog)
-select round(avg(srtp), 2) as slot_daily_avg_srtp
-from (
-      select BQDate,
-            sum(totalbet / BetPerSpin) as std_totalbet,
-            sum(totalwin / BetPerSpin) as std_totalwin,
-            sum(totalwin / BetPerSpin) / sum(totalbet / BetPerSpin) as srtp
-      from (
-            select BQDate, 
-                  BetPerSpin,
-                  sum(TotalBet) as totalbet, 
-                  sum(TotalWin) as totalwin, 
-            from `rd7-data-big-query.bklog.SessionBetWinLog`
-            where BQDate between '2025-03-01' and '2025-03-31' AND
-                  Country = 'CN' AND
-                  BetPerSpin != 0
-            group by 1, 2
-      )
-      group by BQDate
-)
-;
-
-select round(avg(srtp), 2) as fish_daily_avg_srtp
-from (
-      select BQDate,
-            sum(totalbet / BetPerShoot) as std_totalbet,
-            sum(totalwin / BetPerShoot) as std_totalwin,
-            sum(totalwin / BetPerShoot) / sum(totalbet / BetPerShoot) as srtp
-      from (
-            select BQDate, 
-                  BetPerShoot,
-                  sum(TotalBet) as totalbet, 
-                  sum(TotalWin) as totalwin, 
-            from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-            where BQDate between '2025-03-01' and '2025-03-31' AND
-                  Country = 'CN'
-            group by 1, 2
-      )
-      group by BQDate
-)
-;
-
--- 13. 虎/魚的勝率 (totalwins > totalbets的人數除上總遊玩數)
-select round(avg(slot_odd), 2) as daily_avg_slotodd,
-       round(avg(fish_odd), 2) as daily_avg_fishodd
-from (
-      select BQDate,
-            sum(case when SlotCoinWin > SlotCoinBet then 1 else 0 end) / sum(case when SlotCoinBet > 0 then 1 else 0 end) as slot_odd,
-            sum(case when FishCoinWin > FishCoinBet then 1 else 0 end) / sum(case when FishCoinBet > 0 then 1 else 0 end) as fish_odd
-      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-      where BQDate between '2025-03-01' and '2025-03-31' AND
-            Country = 'CN'
-      group by 1
-)
-;
--- 14. 一般/黑鑽玩家水位 (水位總和的日均)
-select BlackDiamondTag, round(avg(total_endbalance), 2) as daily_avg_toal_endbalance
-from (
-      select BQDate, BlackDiamondTag, sum(EndBalance) as total_endbalance
-      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-      where BQDate between '2025-03-01' and '2025-03-31' AND
-            Country = 'CN'
-      group by 1, 2
-)
-group by 1;
-
-
--- 15. 利用金流表計算：平台給予, 遊戲輸贏, 購買獲得, 收贈禮(稅), 平台回收, 淨回收 
-select round(avg(freecoin), 2) as daily_avg_freecoin,
-       round(avg(betgaincoin), 2) as daily_avg_betgaincoin,
-       round(avg(buygaincoin), 2) as daily_avg_buygaincoin,
-       round(avg(tax), 2) as daily_avg_tax,
-       round(avg(platform_return), 2) as daily_avg_platform_return,
-       round(avg(netreturn), 2) as daily_avg_netreturn
-from (
-      select BQDate, 
-            sum(case when Category = '平台給予' then TotalCoinAwarded else 0 end) as freecoin,
-            sum(case when Category = '押注回收' then TotalCoinAwarded else 0 end) as betgaincoin,
-            sum(case when Category = '購物' then TotalCoinAwarded else 0 end) as buygaincoin,
-            sum(case when Category = '價值轉換(贈幣稅)' then TotalCoinAwarded else 0 end) as tax,
-            sum(case when Category = '平台回收' then TotalCoinAwarded else 0 end) as platform_return,
-            (
-            sum(case when Category = '平台給予' then TotalCoinAwarded else 0 end) +
-            sum(case when Category = '押注回收' then TotalCoinAwarded else 0 end) +
-            sum(case when Category = '價值轉換(贈幣稅)' then TotalCoinAwarded else 0 end) +
-            sum(case when Category = '平台回收' then TotalCoinAwarded else 0 end)
-            )*(-1) as netreturn
-      from `rd7-data-big-query.bklog.SessionCoinLog` a
-      left join `rd7-data-big-query.kuochinfu.DataTeamCoinReason` b
-            on a.CoinReason = b.CoinReasonId
-      where BQDate between '2025-03-01' and '2025-03-31' AND
-            UserID in (select distinct UserID 
-                              from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot` 
-                              where BQDate between '2025-03-01' and '2025-03-31' AND 
-                                    Country = 'CN')
-      group by BQDate 
-)
-
-
-;
--- 16. 購幣匯率
-with date_revenue as (
-      select CreateDate, sum(BuyNumber) as buynum
-      from `rd7-data-big-query.bklog.GameConsume`
-      where CreateDate between 20250301 and 20250331 AND
-            Country = 'CN'
-      group by 1
-), date_coin as (
-      select BQDate, sum(TotalCoinAwarded) as buy_coinaward
-      from (
-            select *
-            from `rd7-data-big-query.bklog.SessionCoinLog`
-            where BQDate between '2025-03-01' and '2025-03-31' AND
-                  UserID in (select distinct UserID 
-                             from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot` 
-                             where BQDate between '2025-03-01' and '2025-03-31' AND 
-                                   Country = 'CN')
-            ) a
-      left join `rd7-data-big-query.kuochinfu.DataTeamCoinReason` b
-            on a.CoinReason = b.CoinReasonId
-      where Category = '購物'
-      group by 1
-), date_exchange_rate as (
-      select *, buy_coinaward / buynum as buy_exchange_rate
-      from date_revenue a
-      left join date_coin b
-            on parse_date('%Y%m%d', cast(a.CreateDate as string)) = b.BQDate
-)
-
-select round(avg(buy_exchange_rate), 2) as daily_avg_buy_exchange_rate
-from date_exchange_rate
-; 
-
-
--- 17. 一般向黑鑽收量/人數
--- 18. 一般贈黑鑽量/人數
--- 19. 一般向一般收量/人數 
--- 20. 一般贈一般量/人數
-select round(avg(received_from_blackdiamond_quantity), 2) as daily_avg_received_from_blackdiamond_quantity,
-       round(avg(received_from_blackdiamond_usercounts), 2) as daily_avg_received_from_blackdiamond_usercounts,
-       round(avg(sent_to_blackdiamond_quanitty), 2) as daily_avg_sent_to_blackdiamond_quanitty,
-       round(avg(sent_to_blackdiamond_usercounts), 2) as daily_avg_sent_to_blackdiamond_usercounts,
-       round(avg(received_from_normal_quantity), 2) as daily_avg_received_from_normal_quantity,
-       round(avg(received_from_normal_usercounts), 2) as daily_avg_received_from_normal_usercounts,
-       round(avg(sent_to_normal_quanitty), 2) as daily_avg_sent_to_normal_quanitty,
-       round(avg(sent_to_normal_usercounts), 2) as daily_avg_sent_to_normal_usercounts
-from (
-      select BQDate,
-            sum(CoinReceivedFromBlackDiamond) as received_from_blackdiamond_quantity,
-            sum(case when CoinReceivedFromBlackDiamond != 0 then 1 else 0 end) as received_from_blackdiamond_usercounts,
-            sum(CoinSentToBlackDiamond) as sent_to_blackdiamond_quanitty,
-            sum(case when CoinSentToBlackDiamond != 0 then 1 else 0 end) as sent_to_blackdiamond_usercounts,
-            sum(CoinReceivedFromNormal) as received_from_normal_quantity,
-            sum(case when CoinReceivedFromNormal != 0 then 1 else 0 end) as received_from_normal_usercounts,
-            sum(CoinSentToNormal) as sent_to_normal_quanitty,
-            sum(case when CoinSentToNormal != 0 then 1 else 0 end) as sent_to_normal_usercounts
-      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-      where BQDate between '2025-03-01' and '2025-03-31' AND
-            Country = 'CN' AND 
-            BlackDiamondTag = '一般'
-      group by 1
-)
-;
-
--- 二、請找出2025-03-01~2025-03-05，CN玩家
--- (5分) 日消費最多的玩家、日(魚+虎)機押量最高的玩家
-select BQDate, UserID, 
-       buynumber as revenue,
-       CoinBet as totalbet
-from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-where BQDate between '2025-03-01' and '2025-03-05' AND
-      Country = 'CN'
-order by revenue desc
-limit 1;
-
-select BQDate, UserID, 
-       buynumber as revenue,
-       CoinBet as totalbet
-from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-where BQDate between '2025-03-01' and '2025-03-05' AND
-      Country = 'CN'
-order by totalbet desc
-limit 1;
-
--- (5分) 期間總消費最多的玩家、期間(魚+虎)機總押量最高的玩家
-select UserID, 
-       sum(buynumber) as revenue,
-       sum(CoinBet) as totalbet
-from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-where BQDate between '2025-03-01' and '2025-03-05' AND
-      Country = 'CN'
-group by 1
-order by 2 desc
-limit 1;
-
-select UserID, 
-       sum(buynumber) as revenue,
-       sum(CoinBet) as totalbet
-from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-where BQDate between '2025-03-01' and '2025-03-05' AND
-      Country = 'CN'
-group by 1
-order by 3 desc
-limit 1;
--- (10分)找出玩家在此期間單日最高消費金額後，計算消費分組為：
--- 0~100、100~500、500~1000、1000+的人數
--- 並說明如何找出的?
-select tag, count(*) as user_counts
-from (
-      select *,
-            case when max_daily_revenue between 0 and 100 then 'under100'
-                  when max_daily_revenue between 101 and 500 then 'from101to500'
-                  when max_daily_revenue between 501 and 1000 then 'from501to1000'
-                  else 'over1000' end as tag
-      from (
-            select 
-                  UserID, 
-                  max(buynumber) as max_daily_revenue
-            from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-            where BQDate between '2025-03-01' and '2025-03-05' AND
-                  Country = 'CN'
-            group by 1
-      )
-)
+-- 一、(每題4分) 請計算以下日均指標(日期為2025-03，國家為CN)(Hint：請多發問)：
+
+-- 1. DAU/DNU/DOU/回流人數
+
+
+
+select round(avg(activeuser), 2) as daily_average_activeuser, 
+
+       round(avg(newuser), 2) as daily_average_newuser,
+
+       round(avg(olduser), 2) as daily_average_olduser,
+
+       round(avg(returnuser), 2) as daily_avg_returnuser
+
+from (
+
+  select BQDate,
+
+        count(UserID) as activeuser,
+
+        sum(case when CreateDate = BQDate then 1 else 0 end) as newuser,
+
+        sum(case when CreateDate != BQDate then 1 else 0 end) as olduser,
+
+        sum(case when CreateDate != BQDate and LastVisitDate is null then 1 else 0 end) as returnuser
+
+  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+  where BQDate between '2025-03-01' and '2025-03-31' AND
+
+        Country = 'CN'
+
+  group by BQDate
+
+);
+
+
+
+-- 2. +1/+3/+7/+14/+30留存率
+
+
+
+with march_april_cn_user as (
+
+      select BQDate, UserID
+
+      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+      where BQDate between '2025-03-01' and '2025-04-30' AND
+
+            Country = 'CN'
+
+), temp_table as (
+
+      select a.*, 
+
+            b.BQDate as active_date,
+
+            date_diff(b.BQDate, a.BQDate, day) as diff_day
+
+      from march_april_cn_user a
+
+      left join march_april_cn_user b
+
+            on a.UserID = b.UserID
+
+      where a.BQDate != b.BQDate
+
+      order by a.BQDate, a.UserID, active_date
+
+), final as (
+
+      select BQDate,
+
+            sum(case when diff_day = 1 then 1 else 0 end) / count(distinct UserID) as oneday_retention,
+
+            sum(case when diff_day = 3 then 1 else 0 end) / count(distinct UserID) as threeday_retention,
+
+            sum(case when diff_day = 7 then 1 else 0 end) / count(distinct UserID) as sevenday_retention,
+
+            sum(case when diff_day = 14 then 1 else 0 end) / count(distinct UserID) as fourteenday_retention,
+
+            sum(case when diff_day = 30 then 1 else 0 end) / count(distinct UserID) as thirtyday_retention,
+
+      from temp_table
+
+      group by BQDate 
+
+)
+
+
+
+
+
+select round(avg(oneday_retention), 2) as daily_avg_onedayretention,
+
+       round(avg(threeday_retention), 2) as daily_avg_threedayretention,
+
+       round(avg(sevenday_retention), 2) as daily_avg_sevendayretention,
+
+       round(avg(fourteenday_retention), 2) as daily_avg_fourteendayretention,
+
+       round(avg(thirtyday_retention), 2) as daily_avg_thirtydayretention,
+
+from final
+
+where BQDate < '2025-04-01'
+
+;
+
+
+
+-- 3. 付費人數 
+
+select round(avg(payer_count),2) as daily_avg_payercount
+
+from (
+
+  select BQDate, count(UserID) as payer_count
+
+  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+  where BQDate between '2025-03-01' and '2025-03-31' AND
+
+        Country = 'CN' AND
+
+        BuyNumber > 0
+
+  group by BQDate
+
+)
+
+;
+
+-- 4. 付費率
+
+select round(avg(payrate), 2) as daily_avg_payrate
+
+from (
+
+  select BQDate, 
+
+         count(UserID) as alluser, 
+
+         sum(case when BuyNumber > 0 then 1 else 0 end) as payer,
+
+         sum(case when BuyNumber > 0 then 1 else 0 end) / count(UserID) as payrate 
+
+  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+  where BQDate between '2025-03-01' and '2025-03-31' AND
+
+        Country = 'CN'
+
+  group by BQDate 
+
+)
+
+;
+
+-- 5. 總營收
+
+select round(avg(revenue)) as daily_avg_revenue
+
+from (
+
+  select BQDate, sum(BuyNumber) as revenue
+
+  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+  where BQDate between '2025-03-01' and '2025-03-31' AND
+
+        Country = 'CN'
+
+  group by BQDate 
+
+)
+
+;
+
+
+
+-- 6. ARPPU/ARPU/ARDAU
+
+select round(avg(ARPPU), 2) as daily_avg_arppu,
+
+       round(avg(ARPU), 2) as daily_avg_arpu,
+
+       round(avg(ARDAU), 2) as daily_avg_ardau,
+
+from(
+
+      select BQDate, 
+
+            sum(BuyNumber) / sum(case when BuyNumber > 0 then 1 else 0 end) as ARPPU,
+
+            sum(BuyNumber) / count(*) as ARPU,
+
+            sum(BuyNumber) / count(*) as ARDAU
+
+      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+      where BQDate between '2025-03-01' and '2025-03-31' AND
+
+            Country = 'CN'
+
+      group by 1
+
+)
+
+;
+
+-- 7. 虎/魚的遊玩人數 
+
+-- 8. 虎/魚的總押量 
+
+-- 9. 虎/魚的總贏量
+
+-- 10. 虎/魚的總押次 
+
+-- 11. 虎/魚的RTP
+
+select round(avg(slot_player_count), 2) as daily_average_slot_player_count, 
+
+       round(avg(fish_player_count), 2) as daily_average_fish_player_count,
+
+       round(avg(total_slot_bet), 2) as daily_average_total_slot_bet,
+
+       round(avg(total_fish_bet), 2) as daily_avg_total_fish_bet,
+
+       round(avg(total_slot_win), 2) as daily_average_total_slot_win, 
+
+       round(avg(total_fish_win), 2) as daily_average_total_fish_win,
+
+       round(avg(total_slot_bettimes), 2) as daily_average_total_slot_bettimes,
+
+       round(avg(total_fish_bettimes), 2) as daily_avg_total_fish_bettimes,
+
+       round(avg(slot_rtp), 2) as daily_average_slot_rtp,
+
+       round(avg(fish_rtp), 2) as daily_avg_fish_rtp,
+
+from (
+
+  select BQDate,
+
+         sum(case when SlotCoinBet != 0 then 1 else 0 end) as slot_player_count,
+
+         sum(case when FishCoinBet != 0 then 1 else 0 end) as fish_player_count,
+
+         sum(SlotCoinBet) as total_slot_bet,
+
+         sum(FishCoinBet) as total_fish_bet,
+
+         sum(SlotCoinWin) as total_slot_win,
+
+         sum(FishCoinWin) as total_fish_win,
+
+         sum(SlotCoinBetTimes) as total_slot_bettimes,
+
+         sum(FishCoinBetTimes) as total_fish_bettimes,
+
+         sum(SlotCoinWin) / sum(SlotCoinBet) as slot_rtp,
+
+         sum(FishCoinWin) / sum(FishCoinBet) as fish_rtp
+
+
+
+  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+  where BQDate between '2025-03-01' and '2025-03-31' AND
+
+        Country = 'CN'
+
+  group by BQDate
+
+);
+
+
+
+
+
+-- 12. 虎/魚的SRTP (sessiontigershotbetwinlog, sessionbetwinlog)
+
+select round(avg(srtp), 2) as slot_daily_avg_srtp
+
+from (
+
+      select BQDate,
+
+            sum(totalbet / BetPerSpin) as std_totalbet,
+
+            sum(totalwin / BetPerSpin) as std_totalwin,
+
+            sum(totalwin / BetPerSpin) / sum(totalbet / BetPerSpin) as srtp
+
+      from (
+
+            select BQDate, 
+
+                  BetPerSpin,
+
+                  sum(TotalBet) as totalbet, 
+
+                  sum(TotalWin) as totalwin, 
+
+            from `rd7-data-big-query.bklog.SessionBetWinLog`
+
+            where BQDate between '2025-03-01' and '2025-03-31' AND
+
+                  Country = 'CN' AND
+
+                  BetPerSpin != 0
+
+            group by 1, 2
+
+      )
+
+      group by BQDate
+
+)
+
+;
+
+
+
+select round(avg(srtp), 2) as fish_daily_avg_srtp
+
+from (
+
+      select BQDate,
+
+            sum(totalbet / BetPerShoot) as std_totalbet,
+
+            sum(totalwin / BetPerShoot) as std_totalwin,
+
+            sum(totalwin / BetPerShoot) / sum(totalbet / BetPerShoot) as srtp
+
+      from (
+
+            select BQDate, 
+
+                  BetPerShoot,
+
+                  sum(TotalBet) as totalbet, 
+
+                  sum(TotalWin) as totalwin, 
+
+            from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+            where BQDate between '2025-03-01' and '2025-03-31' AND
+
+                  Country = 'CN'
+
+            group by 1, 2
+
+      )
+
+      group by BQDate
+
+)
+
+;
+
+
+
+-- 13. 虎/魚的勝率 (totalwins > totalbets的人數除上總遊玩數)
+
+select round(avg(slot_odd), 2) as daily_avg_slotodd,
+
+       round(avg(fish_odd), 2) as daily_avg_fishodd
+
+from (
+
+      select BQDate,
+
+            sum(case when SlotCoinWin > SlotCoinBet then 1 else 0 end) / sum(case when SlotCoinBet > 0 then 1 else 0 end) as slot_odd,
+
+            sum(case when FishCoinWin > FishCoinBet then 1 else 0 end) / sum(case when FishCoinBet > 0 then 1 else 0 end) as fish_odd
+
+      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+      where BQDate between '2025-03-01' and '2025-03-31' AND
+
+            Country = 'CN'
+
+      group by 1
+
+)
+
+;
+
+-- 14. 一般/黑鑽玩家水位 (水位總和的日均)
+
+select BlackDiamondTag, round(avg(total_endbalance), 2) as daily_avg_toal_endbalance
+
+from (
+
+      select BQDate, BlackDiamondTag, sum(EndBalance) as total_endbalance
+
+      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+      where BQDate between '2025-03-01' and '2025-03-31' AND
+
+            Country = 'CN'
+
+      group by 1, 2
+
+)
+
+group by 1;
+
+
+
+
+
+-- 15. 利用金流表計算：平台給予, 遊戲輸贏, 購買獲得, 收贈禮(稅), 平台回收, 淨回收 
+
+select round(avg(freecoin), 2) as daily_avg_freecoin,
+
+       round(avg(betgaincoin), 2) as daily_avg_betgaincoin,
+
+       round(avg(buygaincoin), 2) as daily_avg_buygaincoin,
+
+       round(avg(tax), 2) as daily_avg_tax,
+
+       round(avg(platform_return), 2) as daily_avg_platform_return,
+
+       round(avg(netreturn), 2) as daily_avg_netreturn
+
+from (
+
+      select BQDate, 
+
+            sum(case when Category = '平台給予' then TotalCoinAwarded else 0 end) as freecoin,
+
+            sum(case when Category = '押注回收' then TotalCoinAwarded else 0 end) as betgaincoin,
+
+            sum(case when Category = '購物' then TotalCoinAwarded else 0 end) as buygaincoin,
+
+            sum(case when Category = '價值轉換(贈幣稅)' then TotalCoinAwarded else 0 end) as tax,
+
+            sum(case when Category = '平台回收' then TotalCoinAwarded else 0 end) as platform_return,
+
+            (
+
+            sum(case when Category = '平台給予' then TotalCoinAwarded else 0 end) +
+
+            sum(case when Category = '押注回收' then TotalCoinAwarded else 0 end) +
+
+            sum(case when Category = '價值轉換(贈幣稅)' then TotalCoinAwarded else 0 end) +
+
+            sum(case when Category = '平台回收' then TotalCoinAwarded else 0 end)
+
+            )*(-1) as netreturn
+
+      from `rd7-data-big-query.bklog.SessionCoinLog` a
+
+      left join `rd7-data-big-query.kuochinfu.DataTeamCoinReason` b
+
+            on a.CoinReason = b.CoinReasonId
+
+      where BQDate between '2025-03-01' and '2025-03-31' AND
+
+            UserID in (select distinct UserID 
+
+                              from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot` 
+
+                              where BQDate between '2025-03-01' and '2025-03-31' AND 
+
+                                    Country = 'CN')
+
+      group by BQDate 
+
+)
+
+
+
+
+
+;
+
+-- 16. 購幣匯率
+
+with date_revenue as (
+
+      select CreateDate, sum(BuyNumber) as buynum
+
+      from `rd7-data-big-query.bklog.GameConsume`
+
+      where CreateDate between 20250301 and 20250331 AND
+
+            Country = 'CN'
+
+      group by 1
+
+), date_coin as (
+
+      select BQDate, sum(TotalCoinAwarded) as buy_coinaward
+
+      from (
+
+            select *
+
+            from `rd7-data-big-query.bklog.SessionCoinLog`
+
+            where BQDate between '2025-03-01' and '2025-03-31' AND
+
+                  UserID in (select distinct UserID 
+
+                             from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot` 
+
+                             where BQDate between '2025-03-01' and '2025-03-31' AND 
+
+                                   Country = 'CN')
+
+            ) a
+
+      left join `rd7-data-big-query.kuochinfu.DataTeamCoinReason` b
+
+            on a.CoinReason = b.CoinReasonId
+
+      where Category = '購物'
+
+      group by 1
+
+), date_exchange_rate as (
+
+      select *, buy_coinaward / buynum as buy_exchange_rate
+
+      from date_revenue a
+
+      left join date_coin b
+
+            on parse_date('%Y%m%d', cast(a.CreateDate as string)) = b.BQDate
+
+)
+
+
+
+select round(avg(buy_exchange_rate), 2) as daily_avg_buy_exchange_rate
+
+from date_exchange_rate
+
+; 
+
+
+
+
+
+-- 17. 一般向黑鑽收量/人數
+
+-- 18. 一般贈黑鑽量/人數
+
+-- 19. 一般向一般收量/人數 
+
+-- 20. 一般贈一般量/人數
+
+select round(avg(received_from_blackdiamond_quantity), 2) as daily_avg_received_from_blackdiamond_quantity,
+
+       round(avg(received_from_blackdiamond_usercounts), 2) as daily_avg_received_from_blackdiamond_usercounts,
+
+       round(avg(sent_to_blackdiamond_quanitty), 2) as daily_avg_sent_to_blackdiamond_quanitty,
+
+       round(avg(sent_to_blackdiamond_usercounts), 2) as daily_avg_sent_to_blackdiamond_usercounts,
+
+       round(avg(received_from_normal_quantity), 2) as daily_avg_received_from_normal_quantity,
+
+       round(avg(received_from_normal_usercounts), 2) as daily_avg_received_from_normal_usercounts,
+
+       round(avg(sent_to_normal_quanitty), 2) as daily_avg_sent_to_normal_quanitty,
+
+       round(avg(sent_to_normal_usercounts), 2) as daily_avg_sent_to_normal_usercounts
+
+from (
+
+      select BQDate,
+
+            sum(CoinReceivedFromBlackDiamond) as received_from_blackdiamond_quantity,
+
+            sum(case when CoinReceivedFromBlackDiamond != 0 then 1 else 0 end) as received_from_blackdiamond_usercounts,
+
+            sum(CoinSentToBlackDiamond) as sent_to_blackdiamond_quanitty,
+
+            sum(case when CoinSentToBlackDiamond != 0 then 1 else 0 end) as sent_to_blackdiamond_usercounts,
+
+            sum(CoinReceivedFromNormal) as received_from_normal_quantity,
+
+            sum(case when CoinReceivedFromNormal != 0 then 1 else 0 end) as received_from_normal_usercounts,
+
+            sum(CoinSentToNormal) as sent_to_normal_quanitty,
+
+            sum(case when CoinSentToNormal != 0 then 1 else 0 end) as sent_to_normal_usercounts
+
+      from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+      where BQDate between '2025-03-01' and '2025-03-31' AND
+
+            Country = 'CN' AND 
+
+            BlackDiamondTag = '一般'
+
+      group by 1
+
+)
+
+;
+
+
+
+-- 二、請找出2025-03-01~2025-03-05，CN玩家
+
+-- (5分) 日消費最多的玩家、日(魚+虎)機押量最高的玩家
+
+select BQDate, UserID, 
+
+       buynumber as revenue,
+
+       CoinBet as totalbet
+
+from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+where BQDate between '2025-03-01' and '2025-03-05' AND
+
+      Country = 'CN'
+
+order by revenue desc
+
+limit 1;
+
+
+
+select BQDate, UserID, 
+
+       buynumber as revenue,
+
+       CoinBet as totalbet
+
+from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+where BQDate between '2025-03-01' and '2025-03-05' AND
+
+      Country = 'CN'
+
+order by totalbet desc
+
+limit 1;
+
+
+
+-- (5分) 期間總消費最多的玩家、期間(魚+虎)機總押量最高的玩家
+
+select UserID, 
+
+       sum(buynumber) as revenue,
+
+       sum(CoinBet) as totalbet
+
+from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+where BQDate between '2025-03-01' and '2025-03-05' AND
+
+      Country = 'CN'
+
+group by 1
+
+order by 2 desc
+
+limit 1;
+
+
+
+select UserID, 
+
+       sum(buynumber) as revenue,
+
+       sum(CoinBet) as totalbet
+
+from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+where BQDate between '2025-03-01' and '2025-03-05' AND
+
+      Country = 'CN'
+
+group by 1
+
+order by 3 desc
+
+limit 1;
+
+-- (10分)找出玩家在此期間單日最高消費金額後，計算消費分組為：
+
+-- 0~100、100~500、500~1000、1000+的人數
+
+-- 並說明如何找出的?
+
+select tag, count(*) as user_counts
+
+from (
+
+      select *,
+
+            case when max_daily_revenue between 0 and 100 then 'under100'
+
+                  when max_daily_revenue between 101 and 500 then 'from101to500'
+
+                  when max_daily_revenue between 501 and 1000 then 'from501to1000'
+
+                  else 'over1000' end as tag
+
+      from (
+
+            select 
+
+                  UserID, 
+
+                  max(buynumber) as max_daily_revenue
+
+            from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+            where BQDate between '2025-03-01' and '2025-03-05' AND
+
+                  Country = 'CN'
+
+            group by 1
+
+      )
+
+)
+
 group by tag
 ```
 
 ## [Analysis] 新上廳館貓拳BP設計
 
 ```sql
--- context: 為新廳館貓拳天下設計BP
--- 目的: 快速提升玩家對新廳館的熟悉度 1.至少有玩過的玩家規模 2. 玩過的人是否夠熟悉
-
--- 查找過去新廳館上線時，前七天的人均日均押注量。以骰子館為例 (ID: 21)
-select BQDate, UserID, SUM(TotalBet) as daily_total_bet, sum(TotalBetTimes) as daily_total_bet_times
-from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-where BQDate BETWEEN '2025-10-01' and '2025-10-07' and  -- 骰子館於10/1首次上線
-      TableTypeID = 21 and
-      UserID not in (select UserID from `rd7-data-big-query.App_Dragon.GameAccount`)
-group by BQDate, UserID;
-
-
-select distinct
-  percentile_cont(user_daily_average_totalbet, 0)  over() as min_dailybet,
-  percentile_cont(user_daily_average_totalbet, 0.25)  over() as first_quantile_dailybet,
-  percentile_cont(user_daily_average_totalbet, 0.5)  over() as second_quantile_dailybet,
-  percentile_cont(user_daily_average_totalbet, 0.75)  over() as third_quantile_dailybet,
-  percentile_cont(user_daily_average_totalbet, 1)  over() as max_dailybet,
-from (
-  select UserID, round(avg(daily_total_bet)) as user_daily_average_totalbet
-  from (
-    select BQDate, UserID, SUM(TotalBet) as daily_total_bet, sum(TotalBetTimes) as daily_total_bet_times
-    from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-    where BQDate BETWEEN '2025-10-01' and '2025-10-07' and
-        TableTypeID = 21 and
-        UserID not in (select UserID from `rd7-data-big-query.App_Dragon.GameAccount`) and 
-        VipLV >= 3
-    group by BQDate, UserID
-  )
-  group by UserID
-)
-
-
--- 目的: 找出過往門檻是打指定廳館的BP，並優化其內容當作新廳館BP
--- "2025-11-02#e27c9",	  "2025-11-02#3764d"
--- AE_恐龍_中小客_打底高優惠_v23456_CN, AE_惡靈_中小客_打底高優惠_v23456_CN
-
--- select a.*, UserTag, UserType
--- from 
---   (select  BatchID, EventName, UserID, VipLV, max(MissionPriority) + 1 as max_completelevel
---     from `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
---     where BQDate >= '2025-11-02' and 
---           BatchID in ("2025-11-02#e27c9",	  "2025-11-02#3764d")
---     group by BatchID, EventName, UserID, VipLV
---   ) a
--- left join (select * from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup` where BQDate = '2025-11-01')  b
--- on a.UserID = b.UserID;
-
-
--- select distinct UserID, '恐龍' as BoughtBP 
--- from `rd7-data-big-query.bklog.BattlePassBuyLog`
--- where BattlePassID in (select distinct concat('bp_', EventName) from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog` where BatchID = "2025-11-02#e27c9")
--- union all
--- select distinct UserID, '惡靈' as BoughtBP 
--- from `rd7-data-big-query.bklog.BattlePassBuyLog`
+-- context: 為新廳館貓拳天下設計BP
+
+-- 目的: 快速提升玩家對新廳館的熟悉度 1.至少有玩過的玩家規模 2. 玩過的人是否夠熟悉
+
+
+
+-- 查找過去新廳館上線時，前七天的人均日均押注量。以骰子館為例 (ID: 21)
+
+select BQDate, UserID, SUM(TotalBet) as daily_total_bet, sum(TotalBetTimes) as daily_total_bet_times
+
+from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+where BQDate BETWEEN '2025-10-01' and '2025-10-07' and  -- 骰子館於10/1首次上線
+
+      TableTypeID = 21 and
+
+      UserID not in (select UserID from `rd7-data-big-query.App_Dragon.GameAccount`)
+
+group by BQDate, UserID;
+
+
+
+
+
+select distinct
+
+  percentile_cont(user_daily_average_totalbet, 0)  over() as min_dailybet,
+
+  percentile_cont(user_daily_average_totalbet, 0.25)  over() as first_quantile_dailybet,
+
+  percentile_cont(user_daily_average_totalbet, 0.5)  over() as second_quantile_dailybet,
+
+  percentile_cont(user_daily_average_totalbet, 0.75)  over() as third_quantile_dailybet,
+
+  percentile_cont(user_daily_average_totalbet, 1)  over() as max_dailybet,
+
+from (
+
+  select UserID, round(avg(daily_total_bet)) as user_daily_average_totalbet
+
+  from (
+
+    select BQDate, UserID, SUM(TotalBet) as daily_total_bet, sum(TotalBetTimes) as daily_total_bet_times
+
+    from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+    where BQDate BETWEEN '2025-10-01' and '2025-10-07' and
+
+        TableTypeID = 21 and
+
+        UserID not in (select UserID from `rd7-data-big-query.App_Dragon.GameAccount`) and 
+
+        VipLV >= 3
+
+    group by BQDate, UserID
+
+  )
+
+  group by UserID
+
+)
+
+
+
+
+
+-- 目的: 找出過往門檻是打指定廳館的BP，並優化其內容當作新廳館BP
+
+-- "2025-11-02#e27c9",	  "2025-11-02#3764d"
+
+-- AE_恐龍_中小客_打底高優惠_v23456_CN, AE_惡靈_中小客_打底高優惠_v23456_CN
+
+
+
+-- select a.*, UserTag, UserType
+
+-- from 
+
+--   (select  BatchID, EventName, UserID, VipLV, max(MissionPriority) + 1 as max_completelevel
+
+--     from `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
+
+--     where BQDate >= '2025-11-02' and 
+
+--           BatchID in ("2025-11-02#e27c9",	  "2025-11-02#3764d")
+
+--     group by BatchID, EventName, UserID, VipLV
+
+--   ) a
+
+-- left join (select * from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup` where BQDate = '2025-11-01')  b
+
+-- on a.UserID = b.UserID;
+
+
+
+
+
+-- select distinct UserID, '恐龍' as BoughtBP 
+
+-- from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+-- where BattlePassID in (select distinct concat('bp_', EventName) from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog` where BatchID = "2025-11-02#e27c9")
+
+-- union all
+
+-- select distinct UserID, '惡靈' as BoughtBP 
+
+-- from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
 -- where BattlePassID in (select distinct concat('bp_', EventName) from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog` where BatchID = "2025-11-02#3764d")
 ```
 
@@ -1805,545 +2812,1078 @@ inner join (
 ## [BattlePass] 任務門檻達成狀況
 
 ```sql
-with group_usercounts as (
-      select NewUserTag, count(*) as TA_usercounts
-      from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-      where BQDate = date_trunc(current_date(), month)
-            AND Country = 'CN'
-      group by 1
-), impression_info as (
-      select EventName, count(distinct UserID) as impressed_user_counts
-      from `rd7-data-big-query.bklog.ActivityMissionPopUpStateLog`
-      where BQDate >= date_trunc(current_date(), month)
-            AND Country = 'CN'
-      group by 1
-), mission_info as (
-      SELECT 
-            *  
-      FROM (
-      SELECT
-            BatchID,
-            MissionBookMark,
-            eventname,
-            -- 使用 SAFE_OFFSET 避免陣列越界錯誤
-            SPLIT(MissionBookMark, '_')[SAFE_OFFSET(2)] AS TA_Array,
-            MAX(MissionPriority) AS max_level
-      FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
-      WHERE BQDate between date_trunc(current_date(), month) and current_date()
-            AND CountryOperation = 'for'
-            AND Country = 'CN'
-            AND MissionBookMark NOT LIKE '%公會任務%'
-            AND EventName NOT LIKE 'GU%'
-            AND MissionBookMark NOT LIKE '奇喵派對內%'
-      GROUP BY 1, 2, 3, 4
-      ) AS base
-      -- 關鍵修正：將 TA 欄位切分後攤平
-      CROSS JOIN UNNEST(SPLIT(base.TA_Array, ',')) AS TA_Single
-), rewardlog as (
-      select EventName, MissionPriority, count(distinct UserID) as engaged_usercounts
-      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-      where BQDate >= date_trunc(current_date(), month)
-            AND Country = 'CN'
-      group by 1, 2
-      order by 1, 2
-)
-
-
-select mi.* except (TA_Array), 
-       gu.NewUserTag,
-       gu.TA_usercounts, 
-       ii.impressed_user_counts, 
-       rl.MissionPriority,
-       rl.engaged_usercounts,
-from mission_info mi
-left join group_usercounts gu
-      on mi.TA_Single = gu.NewUserTag
-left join impression_info ii
-      on mi.EventName = ii.EventName
-left join rewardlog rl
-      on mi.EventName = rl.EventName
-order by MissionBookMark, MissionPriority
-;
-
--- declare startdate date default '2026-01-06';
--- declare enddate date default current_date();
-
--- with complete_log as (
---   select 
---     --distinct 
---             BQDate, 
---             DATETIME(TIMESTAMP_SECONDS(EventTime), "Asia/Taipei") AS CompleteTiming, 
---             UserID, 
---             EventName,
---             MissionPriority + 1 as CompleteLevel
---   from `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
---   where BQDate between '2026-01-06' and current_date() AND
---         Country = 'CN'
--- ), user_info as (
---   select BQDate, UserID, NewUserTag, UserTag
---   from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
---   where BQDate between DATE_TRUNC(startdate, MONTH) and DATE_TRUNC(enddate, MONTH) AND
---         Country = 'CN'
--- ), mission_info as (
---   select *
---   from (
---     SELECT *, ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
---     from (
---       select 
---              distinct 
---               BQDate, 
---               BatchIDTs,
---               BatchID,
---               EventName,
---               PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(EventName, r'_(\d{8})_')) as which_round,
---               MissionPriority,
---               MissionName,
---               MissionBookMark, 
---               ActivityType, 
---               MissionFeature as purpose, 
---               GameCategory as target_metric, 
---       from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
---       where BQDate = '2026-01-01' AND -- between '2026-01-01' and '2026-01-02' AND
---             CountryOperation = 'for' AND
---             Country = 'CN'
---     )
---   )
---   where recent_rank = 1
---         AND MissionBookMark NOT LIKE '%公會任務%'  -- 排除包含「公會任務」
---         AND MissionBookMark NOT LIKE '奇喵派對內%' -- 排除開頭為「奇喵派對內」
--- )
-
--- select a.*, b.NewUserTag, b.UserTag, c.which_round, c.MissionName, c.MissionBookMark, c.ActivityTYpe, c.purpose, c.target_metric
--- from complete_log a
--- left join user_info b
---   on a.UserID = b.UserID
--- left join mission_info c
---   on a.EventName = c.EventName and a.CompleteLevel = c.MissionPriority
--- ;
----
-
-with mission_temp as (
-  SELECT MissionBookMark,
-         replace(replace(MissionBookMark, '4天', '3天'), '8天', '7天') as MissionBookMark_cleaned,
-         max_level, 
-         EventName, 
-         split(replace(replace(MissionBookMark, '4天', '3天'), '8天', '7天'), '_') as parts
-  FROM (
-      SELECT 
-          *, 
-          ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
-      FROM (
-          SELECT
-              BatchIDTs,
-              EventName,
-              MissionBookMark,
-              MAX(MissionPriority) + 1 as max_level
-          FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
-          WHERE BQDate BETWEEN '2025-12-01' AND '2025-12-31' 
-            AND CountryOperation = 'for' 
-            AND Country = 'CN'
-            AND MissionBookMark NOT LIKE 'AA%'
-            AND MissionBookMark NOT LIKE 'AE%'
-            AND MissionBookMark NOT LIKE 'SS%'
-          GROUP BY 1,2,3
-      )
-  )
-  WHERE recent_rank = 1 
-    AND MissionBookMark NOT LIKE '%公會任務%'  -- 排除包含「公會任務」
-    AND EventName NOT LIKE 'GU%'
-    AND MissionBookMark NOT LIKE '奇喵派對內%' -- 排除開頭為「奇喵派對內」
-), mission_info as ( -- 切分missionbookmark維度、將3日4日和7日8日任務併在一起
-  select
-    MissionBookMark,
-    MissionBookMark_cleaned,
-    EventName,
-    split(EventName, '_')[offset(4)] as viplevel, 
-    max_level,
-    parts[SAFE_OFFSET(0)] AS i1,
-    parts[SAFE_OFFSET(1)] AS i2,
-    -- 手動分類資料未顯示小中大客的MissionBookMark
-    case
-      when MissionBookMark_cleaned LIKE '淘寶大亨%1天%' then '小客'
-      when MissionBookMark_cleaned LIKE '淘寶大亨%3天%' then '中客'
-      when MissionBookMark_cleaned LIKE '淘寶大亨%7天%' then '大客'
-      when MissionBookMark_cleaned LIKE '兌寶狂歡%1天%' then '小客'
-      when MissionBookMark_cleaned LIKE '兌寶狂歡%3天%' then '中客'
-      when MissionBookMark_cleaned LIKE '兌寶狂歡%7天%' then '大客'
-      when MissionBookMark_cleaned LIKE '節慶活動_收集_0_0_0_%' then '中小客'
-      when MissionBookMark_cleaned LIKE '節慶活動_收集%' then '大客'
-      when MissionBookMark_cleaned LIKE '節慶活動_活躍%' then '中小客'
-      else parts[SAFE_OFFSET(2)]
-    end AS customergroup,
-    parts[SAFE_OFFSET(3)] AS play_type,
-    parts[SAFE_OFFSET(4)] AS machine_fish,
-    parts[SAFE_OFFSET(5)] AS runday, 
-    -- -- VIP 等級分類邏輯
-    -- CASE 
-    --   WHEN parts[SAFE_OFFSET(7)] = '1' THEN 'v23456'
-    --   WHEN parts[SAFE_OFFSET(7)] = '2' THEN 'v123456'
-    --   WHEN parts[SAFE_OFFSET(7)] = '3' THEN 'v6'
-    --   WHEN parts[SAFE_OFFSET(7)] = '4' THEN 'v1'
-    --   WHEN parts[SAFE_OFFSET(7)] = '5' THEN 'v12'
-    --   WHEN parts[SAFE_OFFSET(7)] = '6' THEN 'v456'
-    --   WHEN parts[SAFE_OFFSET(7)] = '7' THEN 'v2'
-    --   WHEN parts[SAFE_OFFSET(7)] = '8' THEN 'v34'
-    --   WHEN parts[SAFE_OFFSET(7)] = '9' THEN 'v56'
-    -- END AS viplevel,
-    -- 價格分類邏輯
-    CASE 
-      WHEN parts[SAFE_OFFSET(9)] = '0' THEN '0'
-      WHEN parts[SAFE_OFFSET(9)] = '1' THEN '0.99'
-      WHEN parts[SAFE_OFFSET(9)] = '2' THEN '1.99'
-      WHEN parts[SAFE_OFFSET(9)] = '3' THEN '2.99'
-      WHEN parts[SAFE_OFFSET(9)] = '4' THEN '3.99'
-      WHEN parts[SAFE_OFFSET(9)] = '5' THEN '5.99'
-      WHEN parts[SAFE_OFFSET(9)] = '6' THEN '9.99'
-      WHEN parts[SAFE_OFFSET(9)] = '7' THEN '19.99'
-      WHEN parts[SAFE_OFFSET(9)] = '8' THEN '29.99'
-      WHEN parts[SAFE_OFFSET(9)] = '9' THEN '39.99'
-      WHEN parts[SAFE_OFFSET(9)] = '10' THEN '49.99'
-      WHEN parts[SAFE_OFFSET(9)] = '11' THEN '59.99'
-      WHEN parts[SAFE_OFFSET(9)] = '12' THEN '79.99'
-      WHEN parts[SAFE_OFFSET(9)] = '13' THEN '99.99'
-      WHEN parts[SAFE_OFFSET(9)] = '14' THEN '199.99'
-      WHEN parts[SAFE_OFFSET(9)] = '15' THEN '11.99'
-      WHEN parts[SAFE_OFFSET(9)] = '16' THEN '4.99'
-      WHEN parts[SAFE_OFFSET(9)] = '17' THEN '149.99'
-    END AS price,      
-    parts[SAFE_OFFSET(10)] AS note, 
-  from mission_temp
-), complete_info as ( 
-  select EventName, count(distinct UserID) as engaged_usercounts, avg(max_complete_level) as avg_complete_level, max(max_complete_level) as highest_level
-  from (
-    select EventName, UserID, max(MissionPriority) + 1 as max_complete_level
-    from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-    where BQDate between '2025-12-01' AND '2025-12-31'
-          AND Country = 'CN'
-    group by 1, 2
-  )
-  group by 1
-), impression_info as (
-  select EventName, count(distinct UserID) as impressed_usercounts
-  from `rd7-data-big-query.bklog.ActivityMissionPopUpStateLog`  -- BP曝光資料，用 曝光人數
-  where BQDate between '2025-12-01' and '2025-12-31'
-        AND Country = 'CN'
-        AND EventName NOT LIKE 'GU%'
-  group by EventName
-), group_counts as (
-    SELECT 
-        NewUserTag, 
-        COUNT(*) AS target_user_counts,
-        -- 定義自定義排序權重
-        CASE 
-            WHEN NewUserTag = '無客'   THEN 1
-            WHEN NewUserTag = '迷你客' THEN 2
-            WHEN NewUserTag = '小客'   THEN 3
-            WHEN NewUserTag = '中客'   THEN 4
-            WHEN NewUserTag = '大客'   THEN 5
-            WHEN NewUserTag = '超大客' THEN 6
-            ELSE 7
-        END AS sort_priority
-    FROM `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-    WHERE BQDate = '2025-12-01' 
-      AND Country = 'CN'
-      AND NewUserTag != '負貢獻'
-    GROUP BY NewUserTag
-), calculated_groupcounts as (
-    select NewUserTag, 
-           target_user_counts,
-           sum(target_user_counts) over(order by sort_priority desc) as cum_target_usercounts
-    from group_counts
-
-    union all
-
-    select '中小客' as NewUserTag,
-           sum(case when NewUserTag in ('中客', '小客') then target_user_counts else 0 end) as target_user_counts,
-           sum(target_user_counts) as cum_target_usercounts
-    from group_counts 
-    where NewUserTag not in ('無客', '迷你客')
-)
-
-
-select  *, 
-        engaged_usercounts / TACounts as target_engagement_ratio,
-        engaged_usercounts / impressed_usercounts as abs_engagement_ratio,
-        avg_complete_level / max_level as completion_ratio
-from (
-  select a.*, -- EventName-level
-        d.target_user_counts,
-        d.cum_target_usercounts,
-        c.impressed_usercounts,
-        case 
-              when customergroup not in ('指定玩家', '指定Tag', '0') then least(c.impressed_usercounts, d.cum_target_usercounts) -- least(a,b): a,b 取小的
-              when customergroup = '0' then c.impressed_usercounts
-              when customergroup IN ('指定Tag', '指定玩家') then impressed_usercounts
-              else -1
-        end as TACounts,
-        ifnull(b.engaged_usercounts, 0) as engaged_usercounts,
-        ifnull(b.avg_complete_level, 0) as avg_complete_level,
-        if(b.highest_level = a.max_level, True, False) as any_finish
-  from mission_info a
-  left join complete_info b
-    on a.EventName = b.EventName
-  left join impression_info c
-    on a.EventName = c.EventName
-  left join calculated_groupcounts d
-    on a.customergroup = d.NewUserTag
-  where impressed_usercounts is not null
-)
-;
-
-
-
-
-------------------------------------------------------------
--- WITH base_data AS (
---     SELECT DISTINCT 
---         MissionBookMark, 
---         -- 在此處先切分好，並命名為 parts 陣列
---         SPLIT(MissionBookMark, '_') AS parts,
---         EventName,
---         max_level
---     FROM (
---         SELECT 
---             *, 
---             ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
---         FROM (
---             SELECT 
---                 BatchIDTs,
---                 EventName,
---                 MissionBookMark,
---                 max(MissionPriority) + 1 as max_level
---             FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
---             WHERE BQDate BETWEEN '2026-01-01' AND '2026-01-08' 
---               AND CountryOperation = 'for' 
---               AND Country = 'CN'
---             group by 1, 2, 3
---         )
---     )
---     WHERE recent_rank = 1 
---       AND MissionBookMark NOT LIKE '%公會任務%'  
---       AND MissionBookMark NOT LIKE '奇喵派對內%'
---       AND MissionBookMark NOT IN ('墊底熱門_慶典_指定Tag_惡靈_全_7天_0_1_1_13_收禮解鎖,排9060', '墊底熱門_慶典_指定Tag_惡靈_全_7天_0_1_1_13_收禮解鎖,排商人', '墊底熱門_慶典_指定Tag_獵龍_全_7天_0_1_1_13_收禮解鎖,排9060', '墊底熱門_慶典_指定Tag_獵龍_全_7天_0_1_1_13_收禮解鎖,排商人')
--- )--, mission_info as (
---   SELECT 
---       MissionBookMark,
---       -- 使用 SAFE_OFFSET 存取陣列，避免 Index out of bounds 錯誤
---       parts[SAFE_OFFSET(0)] AS i1,
---       parts[SAFE_OFFSET(1)] AS i2,
---       parts[SAFE_OFFSET(2)] AS customergroup,
---       parts[SAFE_OFFSET(3)] AS play_type,
---       parts[SAFE_OFFSET(4)] AS machine_fish,
---       parts[SAFE_OFFSET(5)] AS runday,
-      
---       -- VIP 等級分類邏輯
---       CASE 
---         WHEN parts[SAFE_OFFSET(7)] = '1' THEN 'v23456'
---         WHEN parts[SAFE_OFFSET(7)] = '2' THEN 'v123456'
---         WHEN parts[SAFE_OFFSET(7)] = '3' THEN 'v6'
---         WHEN parts[SAFE_OFFSET(7)] = '4' THEN 'v1'
---         WHEN parts[SAFE_OFFSET(7)] = '5' THEN 'v12'
---         WHEN parts[SAFE_OFFSET(7)] = '6' THEN 'v456'
---         WHEN parts[SAFE_OFFSET(7)] = '7' THEN 'v2'
---         WHEN parts[SAFE_OFFSET(7)] = '8' THEN 'v34'
---         WHEN parts[SAFE_OFFSET(7)] = '9' THEN 'v56'
---       END AS viplevel,
-      
---       -- 價格分類邏輯
---       CASE 
---         WHEN parts[SAFE_OFFSET(9)] = '0' THEN '0'
---         WHEN parts[SAFE_OFFSET(9)] = '1' THEN '0.99'
---         WHEN parts[SAFE_OFFSET(9)] = '2' THEN '1.99'
---         WHEN parts[SAFE_OFFSET(9)] = '3' THEN '2.99'
---         WHEN parts[SAFE_OFFSET(9)] = '4' THEN '3.99'
---         WHEN parts[SAFE_OFFSET(9)] = '5' THEN '5.99'
---         WHEN parts[SAFE_OFFSET(9)] = '6' THEN '9.99'
---         WHEN parts[SAFE_OFFSET(9)] = '7' THEN '19.99'
---         WHEN parts[SAFE_OFFSET(9)] = '8' THEN '29.99'
---         WHEN parts[SAFE_OFFSET(9)] = '9' THEN '39.99'
---         WHEN parts[SAFE_OFFSET(9)] = '10' THEN '49.99'
---         WHEN parts[SAFE_OFFSET(9)] = '11' THEN '59.99'
---         WHEN parts[SAFE_OFFSET(9)] = '12' THEN '79.99'
---         WHEN parts[SAFE_OFFSET(9)] = '13' THEN '99.99'
---         WHEN parts[SAFE_OFFSET(9)] = '14' THEN '199.99'
---         WHEN parts[SAFE_OFFSET(9)] = '15' THEN '11.99'
---         WHEN parts[SAFE_OFFSET(9)] = '16' THEN '4.99'
---         WHEN parts[SAFE_OFFSET(9)] = '17' THEN '149.99'
---       END AS price,
-      
---       parts[SAFE_OFFSET(10)] AS note,
-
---       EventName,
-
-
-
---     case
---     -- 手動分類資料未顯示小中大客的MissionBookMark
---       when MissionBookMark LIKE '淘寶大亨%1天%' then '小客'
---       when MissionBookMark LIKE '淘寶大亨%3天%' then '中客'
---       when MissionBookMark LIKE '淘寶大亨%' then '大客'
---       when MissionBookMark LIKE '節慶活動_收集_0_0_0_%天_0_1_1_1_新年' then '中小客'
---       when MissionBookMark LIKE '節慶活動_收集%' then '大客'
---       when MissionBookMark LIKE '節慶活動_活躍%' then '中小客'  
---     -- 手動分類資料有顯示小中大客但不在 MissionBookMark 的客群欄位: 先判斷原先克群欄位是否有值，若無才去查其他欄位
---       when parts[SAFE_OFFSET(2)] not in ('指定Tag', '指定玩家') then parts[SAFE_OFFSET(2)]
---       when MissionBookMark LIKE '大客專屬%' then '大客'
---       when parts[SAFE_OFFSET(10)] LIKE '%大客%' then '大客'
---       when parts[SAFE_OFFSET(10)] LIKE 'ZT' then '大客'
---       else '其他'
---     end as TA
+with group_usercounts as (
+
+      select NewUserTag, count(*) as TA_usercounts
+
+      from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+      where BQDate = date_trunc(current_date(), month)
+
+            AND Country = 'CN'
+
+      group by 1
+
+), impression_info as (
+
+      select EventName, count(distinct UserID) as impressed_user_counts
+
+      from `rd7-data-big-query.bklog.ActivityMissionPopUpStateLog`
+
+      where BQDate >= date_trunc(current_date(), month)
+
+            AND Country = 'CN'
+
+      group by 1
+
+), mission_info as (
+
+      SELECT 
+
+            *  
+
+      FROM (
+
+      SELECT
+
+            BatchID,
+
+            MissionBookMark,
+
+            eventname,
+
+            -- 使用 SAFE_OFFSET 避免陣列越界錯誤
+
+            SPLIT(MissionBookMark, '_')[SAFE_OFFSET(2)] AS TA_Array,
+
+            MAX(MissionPriority) AS max_level
+
+      FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+      WHERE BQDate between date_trunc(current_date(), month) and current_date()
+
+            AND CountryOperation = 'for'
+
+            AND Country = 'CN'
+
+            AND MissionBookMark NOT LIKE '%公會任務%'
+
+            AND EventName NOT LIKE 'GU%'
+
+            AND MissionBookMark NOT LIKE '奇喵派對內%'
+
+      GROUP BY 1, 2, 3, 4
+
+      ) AS base
+
+      -- 關鍵修正：將 TA 欄位切分後攤平
+
+      CROSS JOIN UNNEST(SPLIT(base.TA_Array, ',')) AS TA_Single
+
+), rewardlog as (
+
+      select EventName, MissionPriority, count(distinct UserID) as engaged_usercounts
+
+      from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+      where BQDate >= date_trunc(current_date(), month)
+
+            AND Country = 'CN'
+
+      group by 1, 2
+
+      order by 1, 2
+
+)
+
+
+
+
+
+select mi.* except (TA_Array), 
+
+       gu.NewUserTag,
+
+       gu.TA_usercounts, 
+
+       ii.impressed_user_counts, 
+
+       rl.MissionPriority,
+
+       rl.engaged_usercounts,
+
+from mission_info mi
+
+left join group_usercounts gu
+
+      on mi.TA_Single = gu.NewUserTag
+
+left join impression_info ii
+
+      on mi.EventName = ii.EventName
+
+left join rewardlog rl
+
+      on mi.EventName = rl.EventName
+
+order by MissionBookMark, MissionPriority
+
+;
+
+
+
+-- declare startdate date default '2026-01-06';
+
+-- declare enddate date default current_date();
+
+
+
+-- with complete_log as (
+
+--   select 
+
+--     --distinct 
+
+--             BQDate, 
+
+--             DATETIME(TIMESTAMP_SECONDS(EventTime), "Asia/Taipei") AS CompleteTiming, 
+
+--             UserID, 
+
+--             EventName,
+
+--             MissionPriority + 1 as CompleteLevel
+
+--   from `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
+
+--   where BQDate between '2026-01-06' and current_date() AND
+
+--         Country = 'CN'
+
+-- ), user_info as (
+
+--   select BQDate, UserID, NewUserTag, UserTag
+
+--   from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+--   where BQDate between DATE_TRUNC(startdate, MONTH) and DATE_TRUNC(enddate, MONTH) AND
+
+--         Country = 'CN'
+
+-- ), mission_info as (
+
+--   select *
+
+--   from (
+
+--     SELECT *, ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
+
+--     from (
+
+--       select 
+
+--              distinct 
+
+--               BQDate, 
+
+--               BatchIDTs,
+
+--               BatchID,
+
+--               EventName,
+
+--               PARSE_DATE('%Y%m%d', REGEXP_EXTRACT(EventName, r'_(\d{8})_')) as which_round,
+
+--               MissionPriority,
+
+--               MissionName,
+
+--               MissionBookMark, 
+
+--               ActivityType, 
+
+--               MissionFeature as purpose, 
+
+--               GameCategory as target_metric, 
+
+--       from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+--       where BQDate = '2026-01-01' AND -- between '2026-01-01' and '2026-01-02' AND
+
+--             CountryOperation = 'for' AND
+
+--             Country = 'CN'
+
+--     )
+
+--   )
+
+--   where recent_rank = 1
+
+--         AND MissionBookMark NOT LIKE '%公會任務%'  -- 排除包含「公會任務」
+
+--         AND MissionBookMark NOT LIKE '奇喵派對內%' -- 排除開頭為「奇喵派對內」
+
+-- )
+
+
+
+-- select a.*, b.NewUserTag, b.UserTag, c.which_round, c.MissionName, c.MissionBookMark, c.ActivityTYpe, c.purpose, c.target_metric
+
+-- from complete_log a
+
+-- left join user_info b
+
+--   on a.UserID = b.UserID
+
+-- left join mission_info c
+
+--   on a.EventName = c.EventName and a.CompleteLevel = c.MissionPriority
+
+-- ;
+
+---
+
+
+
+with mission_temp as (
+
+  SELECT MissionBookMark,
+
+         replace(replace(MissionBookMark, '4天', '3天'), '8天', '7天') as MissionBookMark_cleaned,
+
+         max_level, 
+
+         EventName, 
+
+         split(replace(replace(MissionBookMark, '4天', '3天'), '8天', '7天'), '_') as parts
+
+  FROM (
+
+      SELECT 
+
+          *, 
+
+          ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
+
+      FROM (
+
+          SELECT
+
+              BatchIDTs,
+
+              EventName,
+
+              MissionBookMark,
+
+              MAX(MissionPriority) + 1 as max_level
+
+          FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+          WHERE BQDate BETWEEN '2025-12-01' AND '2025-12-31' 
+
+            AND CountryOperation = 'for' 
+
+            AND Country = 'CN'
+
+            AND MissionBookMark NOT LIKE 'AA%'
+
+            AND MissionBookMark NOT LIKE 'AE%'
+
+            AND MissionBookMark NOT LIKE 'SS%'
+
+          GROUP BY 1,2,3
+
+      )
+
+  )
+
+  WHERE recent_rank = 1 
+
+    AND MissionBookMark NOT LIKE '%公會任務%'  -- 排除包含「公會任務」
+
+    AND EventName NOT LIKE 'GU%'
+
+    AND MissionBookMark NOT LIKE '奇喵派對內%' -- 排除開頭為「奇喵派對內」
+
+), mission_info as ( -- 切分missionbookmark維度、將3日4日和7日8日任務併在一起
+
+  select
+
+    MissionBookMark,
+
+    MissionBookMark_cleaned,
+
+    EventName,
+
+    split(EventName, '_')[offset(4)] as viplevel, 
+
+    max_level,
+
+    parts[SAFE_OFFSET(0)] AS i1,
+
+    parts[SAFE_OFFSET(1)] AS i2,
+
+    -- 手動分類資料未顯示小中大客的MissionBookMark
+
+    case
+
+      when MissionBookMark_cleaned LIKE '淘寶大亨%1天%' then '小客'
+
+      when MissionBookMark_cleaned LIKE '淘寶大亨%3天%' then '中客'
+
+      when MissionBookMark_cleaned LIKE '淘寶大亨%7天%' then '大客'
+
+      when MissionBookMark_cleaned LIKE '兌寶狂歡%1天%' then '小客'
+
+      when MissionBookMark_cleaned LIKE '兌寶狂歡%3天%' then '中客'
+
+      when MissionBookMark_cleaned LIKE '兌寶狂歡%7天%' then '大客'
+
+      when MissionBookMark_cleaned LIKE '節慶活動_收集_0_0_0_%' then '中小客'
+
+      when MissionBookMark_cleaned LIKE '節慶活動_收集%' then '大客'
+
+      when MissionBookMark_cleaned LIKE '節慶活動_活躍%' then '中小客'
+
+      else parts[SAFE_OFFSET(2)]
+
+    end AS customergroup,
+
+    parts[SAFE_OFFSET(3)] AS play_type,
+
+    parts[SAFE_OFFSET(4)] AS machine_fish,
+
+    parts[SAFE_OFFSET(5)] AS runday, 
+
+    -- -- VIP 等級分類邏輯
+
+    -- CASE 
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '1' THEN 'v23456'
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '2' THEN 'v123456'
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '3' THEN 'v6'
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '4' THEN 'v1'
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '5' THEN 'v12'
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '6' THEN 'v456'
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '7' THEN 'v2'
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '8' THEN 'v34'
+
+    --   WHEN parts[SAFE_OFFSET(7)] = '9' THEN 'v56'
+
+    -- END AS viplevel,
+
+    -- 價格分類邏輯
+
+    CASE 
+
+      WHEN parts[SAFE_OFFSET(9)] = '0' THEN '0'
+
+      WHEN parts[SAFE_OFFSET(9)] = '1' THEN '0.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '2' THEN '1.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '3' THEN '2.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '4' THEN '3.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '5' THEN '5.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '6' THEN '9.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '7' THEN '19.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '8' THEN '29.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '9' THEN '39.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '10' THEN '49.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '11' THEN '59.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '12' THEN '79.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '13' THEN '99.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '14' THEN '199.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '15' THEN '11.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '16' THEN '4.99'
+
+      WHEN parts[SAFE_OFFSET(9)] = '17' THEN '149.99'
+
+    END AS price,      
+
+    parts[SAFE_OFFSET(10)] AS note, 
+
+  from mission_temp
+
+), complete_info as ( 
+
+  select EventName, count(distinct UserID) as engaged_usercounts, avg(max_complete_level) as avg_complete_level, max(max_complete_level) as highest_level
+
+  from (
+
+    select EventName, UserID, max(MissionPriority) + 1 as max_complete_level
+
+    from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+    where BQDate between '2025-12-01' AND '2025-12-31'
+
+          AND Country = 'CN'
+
+    group by 1, 2
+
+  )
+
+  group by 1
+
+), impression_info as (
+
+  select EventName, count(distinct UserID) as impressed_usercounts
+
+  from `rd7-data-big-query.bklog.ActivityMissionPopUpStateLog`  -- BP曝光資料，用 曝光人數
+
+  where BQDate between '2025-12-01' and '2025-12-31'
+
+        AND Country = 'CN'
+
+        AND EventName NOT LIKE 'GU%'
+
+  group by EventName
+
+), group_counts as (
+
+    SELECT 
+
+        NewUserTag, 
+
+        COUNT(*) AS target_user_counts,
+
+        -- 定義自定義排序權重
+
+        CASE 
+
+            WHEN NewUserTag = '無客'   THEN 1
+
+            WHEN NewUserTag = '迷你客' THEN 2
+
+            WHEN NewUserTag = '小客'   THEN 3
+
+            WHEN NewUserTag = '中客'   THEN 4
+
+            WHEN NewUserTag = '大客'   THEN 5
+
+            WHEN NewUserTag = '超大客' THEN 6
+
+            ELSE 7
+
+        END AS sort_priority
+
+    FROM `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+    WHERE BQDate = '2025-12-01' 
+
+      AND Country = 'CN'
+
+      AND NewUserTag != '負貢獻'
+
+    GROUP BY NewUserTag
+
+), calculated_groupcounts as (
+
+    select NewUserTag, 
+
+           target_user_counts,
+
+           sum(target_user_counts) over(order by sort_priority desc) as cum_target_usercounts
+
+    from group_counts
+
+
+
+    union all
+
+
+
+    select '中小客' as NewUserTag,
+
+           sum(case when NewUserTag in ('中客', '小客') then target_user_counts else 0 end) as target_user_counts,
+
+           sum(target_user_counts) as cum_target_usercounts
+
+    from group_counts 
+
+    where NewUserTag not in ('無客', '迷你客')
+
+)
+
+
+
+
+
+select  *, 
+
+        engaged_usercounts / TACounts as target_engagement_ratio,
+
+        engaged_usercounts / impressed_usercounts as abs_engagement_ratio,
+
+        avg_complete_level / max_level as completion_ratio
+
+from (
+
+  select a.*, -- EventName-level
+
+        d.target_user_counts,
+
+        d.cum_target_usercounts,
+
+        c.impressed_usercounts,
+
+        case 
+
+              when customergroup not in ('指定玩家', '指定Tag', '0') then least(c.impressed_usercounts, d.cum_target_usercounts) -- least(a,b): a,b 取小的
+
+              when customergroup = '0' then c.impressed_usercounts
+
+              when customergroup IN ('指定Tag', '指定玩家') then impressed_usercounts
+
+              else -1
+
+        end as TACounts,
+
+        ifnull(b.engaged_usercounts, 0) as engaged_usercounts,
+
+        ifnull(b.avg_complete_level, 0) as avg_complete_level,
+
+        if(b.highest_level = a.max_level, True, False) as any_finish
+
+  from mission_info a
+
+  left join complete_info b
+
+    on a.EventName = b.EventName
+
+  left join impression_info c
+
+    on a.EventName = c.EventName
+
+  left join calculated_groupcounts d
+
+    on a.customergroup = d.NewUserTag
+
+  where impressed_usercounts is not null
+
+)
+
+;
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------
+
+-- WITH base_data AS (
+
+--     SELECT DISTINCT 
+
+--         MissionBookMark, 
+
+--         -- 在此處先切分好，並命名為 parts 陣列
+
+--         SPLIT(MissionBookMark, '_') AS parts,
+
+--         EventName,
+
+--         max_level
+
+--     FROM (
+
+--         SELECT 
+
+--             *, 
+
+--             ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
+
+--         FROM (
+
+--             SELECT 
+
+--                 BatchIDTs,
+
+--                 EventName,
+
+--                 MissionBookMark,
+
+--                 max(MissionPriority) + 1 as max_level
+
+--             FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+--             WHERE BQDate BETWEEN '2026-01-01' AND '2026-01-08' 
+
+--               AND CountryOperation = 'for' 
+
+--               AND Country = 'CN'
+
+--             group by 1, 2, 3
+
+--         )
+
+--     )
+
+--     WHERE recent_rank = 1 
+
+--       AND MissionBookMark NOT LIKE '%公會任務%'  
+
+--       AND MissionBookMark NOT LIKE '奇喵派對內%'
+
+--       AND MissionBookMark NOT IN ('墊底熱門_慶典_指定Tag_惡靈_全_7天_0_1_1_13_收禮解鎖,排9060', '墊底熱門_慶典_指定Tag_惡靈_全_7天_0_1_1_13_收禮解鎖,排商人', '墊底熱門_慶典_指定Tag_獵龍_全_7天_0_1_1_13_收禮解鎖,排9060', '墊底熱門_慶典_指定Tag_獵龍_全_7天_0_1_1_13_收禮解鎖,排商人')
+
+-- )--, mission_info as (
+
+--   SELECT 
+
+--       MissionBookMark,
+
+--       -- 使用 SAFE_OFFSET 存取陣列，避免 Index out of bounds 錯誤
+
+--       parts[SAFE_OFFSET(0)] AS i1,
+
+--       parts[SAFE_OFFSET(1)] AS i2,
+
+--       parts[SAFE_OFFSET(2)] AS customergroup,
+
+--       parts[SAFE_OFFSET(3)] AS play_type,
+
+--       parts[SAFE_OFFSET(4)] AS machine_fish,
+
+--       parts[SAFE_OFFSET(5)] AS runday,
+
+      
+
+--       -- VIP 等級分類邏輯
+
+--       CASE 
+
+--         WHEN parts[SAFE_OFFSET(7)] = '1' THEN 'v23456'
+
+--         WHEN parts[SAFE_OFFSET(7)] = '2' THEN 'v123456'
+
+--         WHEN parts[SAFE_OFFSET(7)] = '3' THEN 'v6'
+
+--         WHEN parts[SAFE_OFFSET(7)] = '4' THEN 'v1'
+
+--         WHEN parts[SAFE_OFFSET(7)] = '5' THEN 'v12'
+
+--         WHEN parts[SAFE_OFFSET(7)] = '6' THEN 'v456'
+
+--         WHEN parts[SAFE_OFFSET(7)] = '7' THEN 'v2'
+
+--         WHEN parts[SAFE_OFFSET(7)] = '8' THEN 'v34'
+
+--         WHEN parts[SAFE_OFFSET(7)] = '9' THEN 'v56'
+
+--       END AS viplevel,
+
+      
+
+--       -- 價格分類邏輯
+
+--       CASE 
+
+--         WHEN parts[SAFE_OFFSET(9)] = '0' THEN '0'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '1' THEN '0.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '2' THEN '1.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '3' THEN '2.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '4' THEN '3.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '5' THEN '5.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '6' THEN '9.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '7' THEN '19.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '8' THEN '29.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '9' THEN '39.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '10' THEN '49.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '11' THEN '59.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '12' THEN '79.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '13' THEN '99.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '14' THEN '199.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '15' THEN '11.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '16' THEN '4.99'
+
+--         WHEN parts[SAFE_OFFSET(9)] = '17' THEN '149.99'
+
+--       END AS price,
+
+      
+
+--       parts[SAFE_OFFSET(10)] AS note,
+
+
+
+--       EventName,
+
+
+
+
+
+
+
+--     case
+
+--     -- 手動分類資料未顯示小中大客的MissionBookMark
+
+--       when MissionBookMark LIKE '淘寶大亨%1天%' then '小客'
+
+--       when MissionBookMark LIKE '淘寶大亨%3天%' then '中客'
+
+--       when MissionBookMark LIKE '淘寶大亨%' then '大客'
+
+--       when MissionBookMark LIKE '節慶活動_收集_0_0_0_%天_0_1_1_1_新年' then '中小客'
+
+--       when MissionBookMark LIKE '節慶活動_收集%' then '大客'
+
+--       when MissionBookMark LIKE '節慶活動_活躍%' then '中小客'  
+
+--     -- 手動分類資料有顯示小中大客但不在 MissionBookMark 的客群欄位: 先判斷原先克群欄位是否有值，若無才去查其他欄位
+
+--       when parts[SAFE_OFFSET(2)] not in ('指定Tag', '指定玩家') then parts[SAFE_OFFSET(2)]
+
+--       when MissionBookMark LIKE '大客專屬%' then '大客'
+
+--       when parts[SAFE_OFFSET(10)] LIKE '%大客%' then '大客'
+
+--       when parts[SAFE_OFFSET(10)] LIKE 'ZT' then '大客'
+
+--       else '其他'
+
+--     end as TA
+
 --   FROM base_data
 ```
 
 ## [BattlePass] 查詢上限活動的分布
 
 ```sql
-SELECT DISTINCT 
-    MissionBookMark, 
-    purpose, 
-    target_metric
-FROM (
-    SELECT 
-        *, 
-        ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
-    FROM (
-        SELECT 
-          DISTINCT
-            BatchIDTs,
-            EventName,
-            MissionBookMark, 
-            MissionFeatureCHT AS purpose, 
-            GameCategory AS target_metric
-        FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
-        WHERE BQDate BETWEEN '2026-01-01' AND '2026-01-31' 
-          AND CountryOperation = 'for' 
-          AND Country = 'CN'
-    )
-)
-WHERE recent_rank = 1 
-  AND MissionBookMark NOT LIKE '%公會任務%'  -- 排除包含「公會任務」
-  AND MissionBookMark NOT LIKE '奇喵派對內%' -- 排除開頭為「奇喵派對內」
-  AND target_metric not in ('一般', '銷售型', '儲值活躍人數')
-  AND  target_metric NOT LIKE '高返利%'
-;
-
-
-
-
-
---------------  convert to long format ------------------
-WITH base_data AS (
-    SELECT DISTINCT 
-        MissionBookMark, 
-        target_metric,
-        -- 在此處先切分好，並命名為 parts 陣列
-        SPLIT(MissionBookMark, '_') AS parts
-    FROM (
-        SELECT 
-            *, 
-            ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
-        FROM (
-            SELECT 
-                DISTINCT
-                BatchIDTs,
-                EventName,
-                MissionBookMark, 
-                GameCategory AS target_metric
-            FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
-            WHERE BQDate BETWEEN '2026-01-01' AND '2026-01-31' 
-              AND CountryOperation = 'for' 
-              AND Country = 'CN'
-        )
-    )
-    WHERE recent_rank = 1 
-      AND MissionBookMark NOT LIKE '%公會任務%'  
-      AND MissionBookMark NOT LIKE '奇喵派對內%'
-      AND MissionBookMark NOT IN ('墊底熱門_慶典_指定Tag_惡靈_全_7天_0_1_1_13_收禮解鎖,排9060', '墊底熱門_慶典_指定Tag_惡靈_全_7天_0_1_1_13_收禮解鎖,排商人', '墊底熱門_慶典_指定Tag_獵龍_全_7天_0_1_1_13_收禮解鎖,排9060', '墊底熱門_慶典_指定Tag_獵龍_全_7天_0_1_1_13_收禮解鎖,排商人')
-      AND target_metric NOT IN ('一般', '銷售型', '儲值活躍人數')
-      AND target_metric NOT LIKE '高返利%' 
-), semi_data as (
-  SELECT 
-      MissionBookMark,
-      -- 使用 SAFE_OFFSET 存取陣列，避免 Index out of bounds 錯誤
-      parts[SAFE_OFFSET(0)] AS i1,
-      parts[SAFE_OFFSET(1)] AS i2,
-      parts[SAFE_OFFSET(2)] AS customergroup,
-      parts[SAFE_OFFSET(3)] AS play_type,
-      parts[SAFE_OFFSET(4)] AS machine_fish,
-      parts[SAFE_OFFSET(5)] AS runday,
-      
-      -- VIP 等級分類邏輯
-      CASE 
-        WHEN parts[SAFE_OFFSET(7)] = '1' THEN 'v23456'
-        WHEN parts[SAFE_OFFSET(7)] = '2' THEN 'v123456'
-        WHEN parts[SAFE_OFFSET(7)] = '3' THEN 'v6'
-        WHEN parts[SAFE_OFFSET(7)] = '4' THEN 'v1'
-        WHEN parts[SAFE_OFFSET(7)] = '5' THEN 'v12'
-        WHEN parts[SAFE_OFFSET(7)] = '6' THEN 'v456'
-        WHEN parts[SAFE_OFFSET(7)] = '7' THEN 'v2'
-        WHEN parts[SAFE_OFFSET(7)] = '8' THEN 'v34'
-        WHEN parts[SAFE_OFFSET(7)] = '9' THEN 'v56'
-      END AS viplevel,
-      
-      -- 價格分類邏輯
-      CASE 
-        WHEN parts[SAFE_OFFSET(9)] = '0' THEN '0'
-        WHEN parts[SAFE_OFFSET(9)] = '1' THEN '0.99'
-        WHEN parts[SAFE_OFFSET(9)] = '2' THEN '1.99'
-        WHEN parts[SAFE_OFFSET(9)] = '3' THEN '2.99'
-        WHEN parts[SAFE_OFFSET(9)] = '4' THEN '3.99'
-        WHEN parts[SAFE_OFFSET(9)] = '5' THEN '5.99'
-        WHEN parts[SAFE_OFFSET(9)] = '6' THEN '9.99'
-        WHEN parts[SAFE_OFFSET(9)] = '7' THEN '19.99'
-        WHEN parts[SAFE_OFFSET(9)] = '8' THEN '29.99'
-        WHEN parts[SAFE_OFFSET(9)] = '9' THEN '39.99'
-        WHEN parts[SAFE_OFFSET(9)] = '10' THEN '49.99'
-        WHEN parts[SAFE_OFFSET(9)] = '11' THEN '59.99'
-        WHEN parts[SAFE_OFFSET(9)] = '12' THEN '79.99'
-        WHEN parts[SAFE_OFFSET(9)] = '13' THEN '99.99'
-        WHEN parts[SAFE_OFFSET(9)] = '14' THEN '199.99'
-        WHEN parts[SAFE_OFFSET(9)] = '15' THEN '11.99'
-        WHEN parts[SAFE_OFFSET(9)] = '16' THEN '4.99'
-        WHEN parts[SAFE_OFFSET(9)] = '17' THEN '149.99'
-      END AS price,
-      
-      parts[SAFE_OFFSET(10)] AS note,
-      
-      -- 指標分類邏輯
-      CASE 
-        WHEN split_target_metric IN ('收禮人數', '人均收禮量') THEN '社交'
-        WHEN split_target_metric IN ('ARPPU', '付費率') THEN '營收'
-        WHEN split_target_metric IN ('押量') THEN '深度'
-        WHEN split_target_metric IN ('登入活躍人數', '遊玩活躍人數') THEN '活躍'
-        ELSE '其他' 
-      END AS purpose, 
-      
-      split_target_metric AS target_metric 
-
-  FROM base_data,
-  -- 先處理標點符號統一，再拆分 target_metric 展開成多列
-  UNNEST(SPLIT(REPLACE(target_metric, '、', ','), ',')) AS split_target_metric
-)
-
-select *,
-  case
-
-    -- 手動分類資料未顯示小中大客的MissionBookMark
-    when MissionBookMark LIKE '淘寶大亨%1天%' then '小客'
-    when MissionBookMark LIKE '淘寶大亨%3天%' then '中客'
-    when MissionBookMark LIKE '淘寶大亨%' then '大客'
-    when MissionBookMark LIKE '節慶活動_收集_0_0_0_%天_0_1_1_1_新年' then '中小客'
-    when MissionBookMark LIKE '節慶活動_收集%' then '大客'
-    when MissionBookMark LIKE '節慶活動_活躍%' then '中小客'
-    
-    -- 手動分類資料有顯示小中大客但不在 MissionBookMark 的客群欄位: 先判斷原先克群欄位是否有值，若無才去查其他欄位
-    when customergroup not in ('指定Tag', '指定玩家') then customergroup
-    when MissionBookMark LIKE '大客專屬%' then '大客'
-    when note LIKE '%大客%' then '大客'
-    when note LIKE 'ZT' then '大客'
-    else '其他'
-  end as TA
-
+SELECT DISTINCT 
+
+    MissionBookMark, 
+
+    purpose, 
+
+    target_metric
+
+FROM (
+
+    SELECT 
+
+        *, 
+
+        ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
+
+    FROM (
+
+        SELECT 
+
+          DISTINCT
+
+            BatchIDTs,
+
+            EventName,
+
+            MissionBookMark, 
+
+            MissionFeatureCHT AS purpose, 
+
+            GameCategory AS target_metric
+
+        FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+        WHERE BQDate BETWEEN '2026-01-01' AND '2026-01-31' 
+
+          AND CountryOperation = 'for' 
+
+          AND Country = 'CN'
+
+    )
+
+)
+
+WHERE recent_rank = 1 
+
+  AND MissionBookMark NOT LIKE '%公會任務%'  -- 排除包含「公會任務」
+
+  AND MissionBookMark NOT LIKE '奇喵派對內%' -- 排除開頭為「奇喵派對內」
+
+  AND target_metric not in ('一般', '銷售型', '儲值活躍人數')
+
+  AND  target_metric NOT LIKE '高返利%'
+
+;
+
+
+
+
+
+
+
+
+
+
+
+--------------  convert to long format ------------------
+
+WITH base_data AS (
+
+    SELECT DISTINCT 
+
+        MissionBookMark, 
+
+        target_metric,
+
+        -- 在此處先切分好，並命名為 parts 陣列
+
+        SPLIT(MissionBookMark, '_') AS parts
+
+    FROM (
+
+        SELECT 
+
+            *, 
+
+            ROW_NUMBER() OVER(PARTITION BY EventName ORDER BY BatchIDTs DESC) AS recent_rank
+
+        FROM (
+
+            SELECT 
+
+                DISTINCT
+
+                BatchIDTs,
+
+                EventName,
+
+                MissionBookMark, 
+
+                GameCategory AS target_metric
+
+            FROM `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+            WHERE BQDate BETWEEN '2026-01-01' AND '2026-01-31' 
+
+              AND CountryOperation = 'for' 
+
+              AND Country = 'CN'
+
+        )
+
+    )
+
+    WHERE recent_rank = 1 
+
+      AND MissionBookMark NOT LIKE '%公會任務%'  
+
+      AND MissionBookMark NOT LIKE '奇喵派對內%'
+
+      AND MissionBookMark NOT IN ('墊底熱門_慶典_指定Tag_惡靈_全_7天_0_1_1_13_收禮解鎖,排9060', '墊底熱門_慶典_指定Tag_惡靈_全_7天_0_1_1_13_收禮解鎖,排商人', '墊底熱門_慶典_指定Tag_獵龍_全_7天_0_1_1_13_收禮解鎖,排9060', '墊底熱門_慶典_指定Tag_獵龍_全_7天_0_1_1_13_收禮解鎖,排商人')
+
+      AND target_metric NOT IN ('一般', '銷售型', '儲值活躍人數')
+
+      AND target_metric NOT LIKE '高返利%' 
+
+), semi_data as (
+
+  SELECT 
+
+      MissionBookMark,
+
+      -- 使用 SAFE_OFFSET 存取陣列，避免 Index out of bounds 錯誤
+
+      parts[SAFE_OFFSET(0)] AS i1,
+
+      parts[SAFE_OFFSET(1)] AS i2,
+
+      parts[SAFE_OFFSET(2)] AS customergroup,
+
+      parts[SAFE_OFFSET(3)] AS play_type,
+
+      parts[SAFE_OFFSET(4)] AS machine_fish,
+
+      parts[SAFE_OFFSET(5)] AS runday,
+
+      
+
+      -- VIP 等級分類邏輯
+
+      CASE 
+
+        WHEN parts[SAFE_OFFSET(7)] = '1' THEN 'v23456'
+
+        WHEN parts[SAFE_OFFSET(7)] = '2' THEN 'v123456'
+
+        WHEN parts[SAFE_OFFSET(7)] = '3' THEN 'v6'
+
+        WHEN parts[SAFE_OFFSET(7)] = '4' THEN 'v1'
+
+        WHEN parts[SAFE_OFFSET(7)] = '5' THEN 'v12'
+
+        WHEN parts[SAFE_OFFSET(7)] = '6' THEN 'v456'
+
+        WHEN parts[SAFE_OFFSET(7)] = '7' THEN 'v2'
+
+        WHEN parts[SAFE_OFFSET(7)] = '8' THEN 'v34'
+
+        WHEN parts[SAFE_OFFSET(7)] = '9' THEN 'v56'
+
+      END AS viplevel,
+
+      
+
+      -- 價格分類邏輯
+
+      CASE 
+
+        WHEN parts[SAFE_OFFSET(9)] = '0' THEN '0'
+
+        WHEN parts[SAFE_OFFSET(9)] = '1' THEN '0.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '2' THEN '1.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '3' THEN '2.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '4' THEN '3.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '5' THEN '5.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '6' THEN '9.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '7' THEN '19.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '8' THEN '29.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '9' THEN '39.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '10' THEN '49.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '11' THEN '59.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '12' THEN '79.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '13' THEN '99.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '14' THEN '199.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '15' THEN '11.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '16' THEN '4.99'
+
+        WHEN parts[SAFE_OFFSET(9)] = '17' THEN '149.99'
+
+      END AS price,
+
+      
+
+      parts[SAFE_OFFSET(10)] AS note,
+
+      
+
+      -- 指標分類邏輯
+
+      CASE 
+
+        WHEN split_target_metric IN ('收禮人數', '人均收禮量') THEN '社交'
+
+        WHEN split_target_metric IN ('ARPPU', '付費率') THEN '營收'
+
+        WHEN split_target_metric IN ('押量') THEN '深度'
+
+        WHEN split_target_metric IN ('登入活躍人數', '遊玩活躍人數') THEN '活躍'
+
+        ELSE '其他' 
+
+      END AS purpose, 
+
+      
+
+      split_target_metric AS target_metric 
+
+
+
+  FROM base_data,
+
+  -- 先處理標點符號統一，再拆分 target_metric 展開成多列
+
+  UNNEST(SPLIT(REPLACE(target_metric, '、', ','), ',')) AS split_target_metric
+
+)
+
+
+
+select *,
+
+  case
+
+
+
+    -- 手動分類資料未顯示小中大客的MissionBookMark
+
+    when MissionBookMark LIKE '淘寶大亨%1天%' then '小客'
+
+    when MissionBookMark LIKE '淘寶大亨%3天%' then '中客'
+
+    when MissionBookMark LIKE '淘寶大亨%' then '大客'
+
+    when MissionBookMark LIKE '節慶活動_收集_0_0_0_%天_0_1_1_1_新年' then '中小客'
+
+    when MissionBookMark LIKE '節慶活動_收集%' then '大客'
+
+    when MissionBookMark LIKE '節慶活動_活躍%' then '中小客'
+
+    
+
+    -- 手動分類資料有顯示小中大客但不在 MissionBookMark 的客群欄位: 先判斷原先克群欄位是否有值，若無才去查其他欄位
+
+    when customergroup not in ('指定Tag', '指定玩家') then customergroup
+
+    when MissionBookMark LIKE '大客專屬%' then '大客'
+
+    when note LIKE '%大客%' then '大客'
+
+    when note LIKE 'ZT' then '大客'
+
+    else '其他'
+
+  end as TA
+
+
+
 from semi_data
 ```
 
@@ -2604,61 +4144,110 @@ group by NewUserTag
 ## [Others] 客群常購金額
 
 ```sql
-declare target_country string default 'JP'; -- 填入國家
-
-with battlepass_buy as (
-      select * except(BQDate), extract(month from BQDate) as month
-      from `rd7-data-big-query.bklog.BattlePassBuyLog`
-      where BQDate >= '2025-11-01'
-            AND Country = target_country
-), UserTag as (
-    select extract(month from BQDate) as month, UserID, NewUserTag
-    from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-    where BQDate >= '2025-11-01'
-          AND  Country = target_country
-), buylog_with_tag as (
-      select a.*, b.NewUserTag
-      from battlepass_buy a 
-      left join UserTag b
-            on a.month = b.month and a.UserID =b.UserID
-)
-
-
-select month, NewUserTag, BuyNumber, count(distinct UserID) as user_counts, count(*) as order_counts
-from buylog_with_tag
-group by 1, 2, 3
+declare target_country string default 'JP'; -- 填入國家
+
+
+
+with battlepass_buy as (
+
+      select * except(BQDate), extract(month from BQDate) as month
+
+      from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+      where BQDate >= '2025-11-01'
+
+            AND Country = target_country
+
+), UserTag as (
+
+    select extract(month from BQDate) as month, UserID, NewUserTag
+
+    from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+    where BQDate >= '2025-11-01'
+
+          AND  Country = target_country
+
+), buylog_with_tag as (
+
+      select a.*, b.NewUserTag
+
+      from battlepass_buy a 
+
+      left join UserTag b
+
+            on a.month = b.month and a.UserID =b.UserID
+
+)
+
+
+
+
+
+select month, NewUserTag, BuyNumber, count(distinct UserID) as user_counts, count(*) as order_counts
+
+from buylog_with_tag
+
+group by 1, 2, 3
+
 order by 1 desc, NewUserTag desc, BuyNumber desc
 ```
 
 ## [Others] 用營收貢獻算虎機大客超大客
 
 ```sql
-declare first_day_of_month date default DATE_TRUNC(CURRENT_DATE(), MONTH);
-
--- with dec_whale_dolphin as (
---       select UserID
---       from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
---       where BQDate = first_day_of_month and 
---             NewUserTag in ('大客', '超大客')
--- )
--- select UserID, 
---        sum(SlotCoinBet) as slot_totalbet,
---        sum(FishCoinBet) as fish_totalbet,
---        safe_divide(sum(SlotCoinBet), sum(FishCoinBet)) as slot2fish_ratio,
---        case when sum(SlotCoinBet) > sum(FishCoinBet) then 1 else 0 end as slot_player
--- from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
--- where BQDate >= first_day_of_month and 
---       UserID in (select UserID from dec_whale_dolphin)
--- group by UserID
-
--- ;
-
-select UserID, 
-      sum(BuyNumber) + sum(TotalCoinReceived)/4000000 - sum(TotalCoinSent) / 4000000 as contribution,
-      case when sum(SlotCoinBet) > sum(FishCoinBet) then 1 else 0 end as slot_player
-from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-where BQDate >= first_day_of_month and Country = 'CN'
-group by UserID
+declare first_day_of_month date default DATE_TRUNC(CURRENT_DATE(), MONTH);
+
+
+
+-- with dec_whale_dolphin as (
+
+--       select UserID
+
+--       from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+--       where BQDate = first_day_of_month and 
+
+--             NewUserTag in ('大客', '超大客')
+
+-- )
+
+-- select UserID, 
+
+--        sum(SlotCoinBet) as slot_totalbet,
+
+--        sum(FishCoinBet) as fish_totalbet,
+
+--        safe_divide(sum(SlotCoinBet), sum(FishCoinBet)) as slot2fish_ratio,
+
+--        case when sum(SlotCoinBet) > sum(FishCoinBet) then 1 else 0 end as slot_player
+
+-- from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+-- where BQDate >= first_day_of_month and 
+
+--       UserID in (select UserID from dec_whale_dolphin)
+
+-- group by UserID
+
+
+
+-- ;
+
+
+
+select UserID, 
+
+      sum(BuyNumber) + sum(TotalCoinReceived)/4000000 - sum(TotalCoinSent) / 4000000 as contribution,
+
+      case when sum(SlotCoinBet) > sum(FishCoinBet) then 1 else 0 end as slot_player
+
+from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+where BQDate >= first_day_of_month and Country = 'CN'
+
+group by UserID
+
 having sum(BuyNumber) + sum(TotalCoinReceived)/4000000 - sum(TotalCoinSent) / 4000000 >= 500*31
 ```
 
@@ -2666,47 +4255,88 @@ having sum(BuyNumber) + sum(TotalCoinReceived)/4000000 - sum(TotalCoinSent) / 40
 **描述：** 節慶任務周排行榜加月排行榜結算用
 
 ```sql
-declare event_id string default 'AR1767175528'; -- 輸入排行榜id
-declare rank_startdate date default '2026-01-01'; -- 輸入排行榜起始日
-declare rank_enddate date default '2026-01-30';  -- 輸入排行榜結束日
-
--- 查看排行榜結果
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = date_add(rank_enddate, interval 1 day) and EventID = event_id
-order by Rank
-;
-
--- 查看玩家實際領取的每周token (真正的周排行榜排名)
-select UserID, sum(TotalItemAwarded) as total_token
-from `rd7-data-big-query.bklog.SessionItemLog`
-where BQDate between rank_startdate and rank_enddate
-      AND ItemType = 92153 -- 當月tokenB的token id
-group by UserID
-having sum(TotalItemAwarded) >= 100
-order by total_token desc
-;
-
-
--- 查看領到高優惠禮包特權token的玩家
-select *
-from `rd7-data-big-query.bklog.SessionItemLog`
-where BQDate > rank_enddate 
-      AND ItemType = 92188 -- 高優惠禮包token id
-;
-
--- 查看玩家實際領取月積分數量 (真正的月排行榜排名)
-select UserID, sum(TotalItemAwarded) as total_token
-from `rd7-data-big-query.bklog.SessionItemLog`
-where BQDate between '2026-01-01' and '2026-01-29'
-      AND ItemType = 92190 -- 月積分token id
-group by UserID
-order by total_token desc
-;
-
-
--- select distinct BQDate
--- from `rd7-data-big-query.bklog.BQRankSourceLog`
+declare event_id string default 'AR1767175528'; -- 輸入排行榜id
+
+declare rank_startdate date default '2026-01-01'; -- 輸入排行榜起始日
+
+declare rank_enddate date default '2026-01-30';  -- 輸入排行榜結束日
+
+
+
+-- 查看排行榜結果
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = date_add(rank_enddate, interval 1 day) and EventID = event_id
+
+order by Rank
+
+;
+
+
+
+-- 查看玩家實際領取的每周token (真正的周排行榜排名)
+
+select UserID, sum(TotalItemAwarded) as total_token
+
+from `rd7-data-big-query.bklog.SessionItemLog`
+
+where BQDate between rank_startdate and rank_enddate
+
+      AND ItemType = 92153 -- 當月tokenB的token id
+
+group by UserID
+
+having sum(TotalItemAwarded) >= 100
+
+order by total_token desc
+
+;
+
+
+
+
+
+-- 查看領到高優惠禮包特權token的玩家
+
+select *
+
+from `rd7-data-big-query.bklog.SessionItemLog`
+
+where BQDate > rank_enddate 
+
+      AND ItemType = 92188 -- 高優惠禮包token id
+
+;
+
+
+
+-- 查看玩家實際領取月積分數量 (真正的月排行榜排名)
+
+select UserID, sum(TotalItemAwarded) as total_token
+
+from `rd7-data-big-query.bklog.SessionItemLog`
+
+where BQDate between '2026-01-01' and '2026-01-29'
+
+      AND ItemType = 92190 -- 月積分token id
+
+group by UserID
+
+order by total_token desc
+
+;
+
+
+
+
+
+-- select distinct BQDate
+
+-- from `rd7-data-big-query.bklog.BQRankSourceLog`
+
 -- where BQDAte >= '2025-12-01' and ItemType = 92085
 ```
 
@@ -2715,308 +4345,604 @@ order by total_token desc
 魚機顆粒度: BQDate + UserID + Tabletype + FishID + Status
 
 ```sql
--- DECLARE target_tags ARRAY<STRING> DEFAULT ['大客', '超大客'];
--- DECLARE target_tags ARRAY<STRING> DEFAULT ['中客', '小客'] ;
--- DECLARE target_tags ARRAY<STRING> DEFAULT ['迷你客', '無客', '負貢獻'] ;
--- DECLARE target_user INT DEFAUILT 104578599 --ZT UserID
-
--- 全客的熱門虎機台
-with bet_log as (
-  select *  
-  from `rd7-data-big-query.bklog.SessionBetWinLog`
-  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) AND
-        Country = 'CN' AND
-        TotalBet > 0
-), game_info as (
-  select GameID, GameName_CHT
-  from `rd7-data-big-query.MobileDW_Dragon.DimGame_ID`
-)
-
-select extract(month from BQDate) as month, GameName_CHT, count(distinct UserID) as user_counts, sum(TotalBet) as totalbet
-from bet_log
-inner join game_info
-  using (GameID)
-group by extract(month from BQDate), GameName_CHT
-order by 2, 1
-;
-
--- 指定客群的熱門虎機台
-with bet_log as (
-  select *  
-  from `rd7-data-big-query.bklog.SessionBetWinLog`
-  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) and
-        TotalBet != 0 AND
-        Country = 'CN'
-), game_info as (
-  select GameID, GameName_CHT
-  from `rd7-data-big-query.MobileDW_Dragon.DimGame_ID`
-), user_info as (
-  select UserID, NewUserTag
-  from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-  where BQDate = DATE_TRUNC(CURRENT_DATE(), MONTH)
-)
-
-select 
-       extract(MONTH FROM a.BQDate) as bet_month,
-       c.NewUserTag,
-       b.GameName_CHT,
-       count(distinct UserID) as user_counts,
-       sum(a.TotalBet) as totalbet
-from bet_log a
-inner join game_info b
-  using (GameID)
-inner join user_info c
-  using (UserID)
--- where NewUserTag in unnest( target_tags)
-group by 1, 2, 3
-;
-
-
-
--- 全客的熱門魚機台
-with bet_log as (
-  select *  
-  from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) 
-        AND Country = 'CN'
-        AND TotalBet > 0
-), tabletype_info as (
-  select TableTypeIDKey, TableTypeIDName_TW
-  from `rd7-data-big-query.MobileDW_Dragon.DimTableTypeID`
-)
-
-select extract(month from BQDate) as month, 
-       TableTypeIDName_TW, 
-       sum(TotalBet) as totalbet, 
-       count(distinct UserID) as user_counts
-from bet_log a
-inner join tabletype_info b
-  on a.TableTypeID = b.TableTypeIDKey
-group by extract(month from BQDate), TableTypeIDName_TW
-order by 2, 1
-;
-
--- 指定客群的熱門魚機台
-with bet_log as (
-  select *  
-  from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) 
-        AND TotalBet != 0 
-        AND Country = 'CN'
-), tabletype_info as (
-  select TableTypeIDKey, TableTypeIDName_TW
-  from `rd7-data-big-query.MobileDW_Dragon.DimTableTypeID`
-), user_info as (
-  select UserID, NewUserTag
-  from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-  where BQDate = DATE_TRUNC(CURRENT_DATE(), MONTH) 
-)
-
-select 
-       extract(MONTH FROM a.BQDate) as bet_month,
-       c.NewUserTag,
-       b.TableTypeIDName_TW,
-       count(distinct UserID) as user_counts,
-       sum(a.TotalBet) as totalbet
-from bet_log a
-inner join tabletype_info b
-  on a.TableTypeID = b.TableTypeIDKey
-inner join user_info c
-  using (UserID)
--- where NewUserTag in unnest(target_tags)
-group by 1, 2, 3
-;
-
-
--- 熱門魚種挑選
-with bet_log as (
-  select *
-  FROM `rd7-data-big-query.bklog.TigerSharkFishStatisticsLog` a
-  INNER JOIN (select distinct user_id from `rd7-data-big-query.ExtData_Dragon.UserInfo` where ip_country = 'CN') b
-    ON a.UserID = b.user_id
-  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) 
-        
-), fish_info as (
-  select FishID, FishName_CHT
-  from `rd7-data-big-query.MobileDW_Dragon.DimTigerSharkOdds`
-)
-
-select a.FishID, Status, b.FishName_CHT, sum(TotalBet) as TotalBet, sum(TotalWin) as TotalWin
-from bet_log a
-left join fish_info b
-  on a.FishID = b.FishID
-group by 1, 2, 3
-order by 4 desc
-;
-
-
-
-
-
--- 目的: 阿茲特克、猴爺魚排行榜參與低下
-select *, TotalBet / 31 as daily_totalbet -- 一月熱門魚種
-from(
-      select FishID, Status,  sum(TotalBet) as TotalBet, sum(TotalWin) as TotalWin
-      FROM `rd7-data-big-query.bklog.TigerSharkFishStatisticsLog` a
-      INNER JOIN (select distinct user_id from `rd7-data-big-query.ExtData_Dragon.UserInfo` where ip_country = 'CN') b
-            ON a.UserID = b.user_id
-      where BQDate between '2026-01-01' and '2026-01-31'
-            AND BetPerShoot >= 100000
-      group by 1, 2
-) a
-left join (
-            select FishID, FishName_CHT
-            from `rd7-data-big-query.MobileDW_Dragon.DimTigerSharkOdds`
-            ) b
-      on a.FishID = b.FishID
-order by a.TotalBet desc
-;
-
-select b.GameName_CHT, 
-      sum(TotalBet) as totalbet, 
-      sum(TotalWIn) as totalwin,
-      sum(TotalBet) / 31 as daily_totalbet -- 一月熱門機台
-from (
-      select *
-      from `rd7-data-big-query.bklog.SessionBetWinLog`
-      where BQDate between '2026-01-01' and '2026-01-31'
-            AND Country = 'CN'
-            AND BetPerSpin >= 1000000
-) a
-left join (
-            select GameID, GameName_CHT
-            from `rd7-data-big-query.MobileDW_Dragon.DimGame_ID`
-            ) b
-      on a.GameID = b.GameID
-group by 1
-order by 2 desc
-;
-
--- Step 1: 確認事實(真的低嗎?排行榜資料庫問題?)
-SELECT
-  a.UserID,
-  SUM(a.TotalBet) AS TotalBet,
-  SUM(a.TotalWin) as TotalWin
-FROM `rd7-data-big-query.bklog.TigerSharkFishStatisticsLog` a
-INNER JOIN (select distinct user_id from `rd7-data-big-query.ExtData_Dragon.UserInfo` where ip_country = 'CN') b
-  ON a.UserID = b.user_id
-WHERE a.BQDate between '2026-02-02' and '2026-02-03'
-  AND a.TableTypeID IN (12, 13, 14) -- VIP三個廳館
-  AND a.FishID = 116 -- 猴爺魚
-  AND a.BetPerShoot >= 100000
-GROUP BY a.UserID
-ORDER BY 3 DESC
-; 
-
-SELECT
-  a.UserID,
-  SUM(a.TotalBet) AS TotalBet,
-  SUM(a.TotalWin) as TotalWin
-FROM `rd7-data-big-query.bklog.SessionBetWinLog` a
-WHERE a.BQDate between '2026-02-02' and '2026-02-03'
-      AND Country = 'CN'
-      AND a.GameID = 509 -- 阿茲特克
-      -- AND a.BetPerSpin >= 1000000
-GROUP BY a.UserID
-HAVING sum(a.TotalWin) >= 3138500
-ORDER BY 3 DESC
-;
-
--- Step 2: 排查問題，主要玩家玩的情況如何
- -- aztec_player
-select UserID, 
-      sum(TotalBet) as totalbet, 
-      sum(TotalBet) / 31 as daily_totalbet
-from `rd7-data-big-query.bklog.SessionBetWinLog`
-where BQDate between '2026-01-01' and '2026-01-31'
-      AND Country = 'CN'
-      AND BetPerSpin >= 1000000
-      AND GameID = 509
-group by 1
-order by 2 desc
-;
-
--- hoyeahfish_hunter: 看一月玩家，單日押量狀況
-SELECT
-  a.BQDate,
-  a.UserID,
-  SUM(a.TotalBet) AS TotalBet
-FROM `rd7-data-big-query.bklog.TigerSharkFishStatisticsLog` a
-INNER JOIN (select distinct user_id from `rd7-data-big-query.ExtData_Dragon.UserInfo` where ip_country = 'CN') b
-  ON a.UserID = b.user_id
-WHERE a.BQDate between '2026-01-01' and '2026-01-31'
-  AND a.TableTypeID IN (12, 13, 14)
-  AND a.FishID = 116 -- 猴爺魚
-  AND a.BetPerShoot >= 100000
-GROUP BY 1, 2
-ORDER BY 3 DESC
-; 
-
-
--- 一月Aztec總押量前百名玩家，有幾位有參加排行榜
-select count(distinct UserID)
-from `rd7-data-big-query.bklog.SessionActive`
-where BQDate = '2026-02-02'
-      AND Country = 'CN'
-      AND UserID in 
-                    ( 
-                      select UserID
-                      from 
-                        (
-                        select UserID, sum(TotalBet) 
-                        from `rd7-data-big-query.bklog.SessionBetWinLog`
-                        where BQDate between '2026-01-01' and '2026-01-31'
-                            AND Country = 'CN'
-                            AND BetPerSpin >= 1000000
-                            AND GameID = 509
-                        group by 1
-                        order by 2 desc
-                        )
-                      limit 100
+-- DECLARE target_tags ARRAY<STRING> DEFAULT ['大客', '超大客'];
+
+-- DECLARE target_tags ARRAY<STRING> DEFAULT ['中客', '小客'] ;
+
+-- DECLARE target_tags ARRAY<STRING> DEFAULT ['迷你客', '無客', '負貢獻'] ;
+
+-- DECLARE target_user INT DEFAUILT 104578599 --ZT UserID
+
+
+
+-- 全客的熱門虎機台
+
+with bet_log as (
+
+  select *  
+
+  from `rd7-data-big-query.bklog.SessionBetWinLog`
+
+  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) AND
+
+        Country = 'CN' AND
+
+        TotalBet > 0
+
+), game_info as (
+
+  select GameID, GameName_CHT
+
+  from `rd7-data-big-query.MobileDW_Dragon.DimGame_ID`
+
+)
+
+
+
+select extract(month from BQDate) as month, GameName_CHT, count(distinct UserID) as user_counts, sum(TotalBet) as totalbet
+
+from bet_log
+
+inner join game_info
+
+  using (GameID)
+
+group by extract(month from BQDate), GameName_CHT
+
+order by 2, 1
+
+;
+
+
+
+-- 指定客群的熱門虎機台
+
+with bet_log as (
+
+  select *  
+
+  from `rd7-data-big-query.bklog.SessionBetWinLog`
+
+  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) and
+
+        TotalBet != 0 AND
+
+        Country = 'CN'
+
+), game_info as (
+
+  select GameID, GameName_CHT
+
+  from `rd7-data-big-query.MobileDW_Dragon.DimGame_ID`
+
+), user_info as (
+
+  select UserID, NewUserTag
+
+  from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+  where BQDate = DATE_TRUNC(CURRENT_DATE(), MONTH)
+
+)
+
+
+
+select 
+
+       extract(MONTH FROM a.BQDate) as bet_month,
+
+       c.NewUserTag,
+
+       b.GameName_CHT,
+
+       count(distinct UserID) as user_counts,
+
+       sum(a.TotalBet) as totalbet
+
+from bet_log a
+
+inner join game_info b
+
+  using (GameID)
+
+inner join user_info c
+
+  using (UserID)
+
+-- where NewUserTag in unnest( target_tags)
+
+group by 1, 2, 3
+
+;
+
+
+
+
+
+
+
+-- 全客的熱門魚機台
+
+with bet_log as (
+
+  select *  
+
+  from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) 
+
+        AND Country = 'CN'
+
+        AND TotalBet > 0
+
+), tabletype_info as (
+
+  select TableTypeIDKey, TableTypeIDName_TW
+
+  from `rd7-data-big-query.MobileDW_Dragon.DimTableTypeID`
+
+)
+
+
+
+select extract(month from BQDate) as month, 
+
+       TableTypeIDName_TW, 
+
+       sum(TotalBet) as totalbet, 
+
+       count(distinct UserID) as user_counts
+
+from bet_log a
+
+inner join tabletype_info b
+
+  on a.TableTypeID = b.TableTypeIDKey
+
+group by extract(month from BQDate), TableTypeIDName_TW
+
+order by 2, 1
+
+;
+
+
+
+-- 指定客群的熱門魚機台
+
+with bet_log as (
+
+  select *  
+
+  from `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) 
+
+        AND TotalBet != 0 
+
+        AND Country = 'CN'
+
+), tabletype_info as (
+
+  select TableTypeIDKey, TableTypeIDName_TW
+
+  from `rd7-data-big-query.MobileDW_Dragon.DimTableTypeID`
+
+), user_info as (
+
+  select UserID, NewUserTag
+
+  from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+  where BQDate = DATE_TRUNC(CURRENT_DATE(), MONTH) 
+
+)
+
+
+
+select 
+
+       extract(MONTH FROM a.BQDate) as bet_month,
+
+       c.NewUserTag,
+
+       b.TableTypeIDName_TW,
+
+       count(distinct UserID) as user_counts,
+
+       sum(a.TotalBet) as totalbet
+
+from bet_log a
+
+inner join tabletype_info b
+
+  on a.TableTypeID = b.TableTypeIDKey
+
+inner join user_info c
+
+  using (UserID)
+
+-- where NewUserTag in unnest(target_tags)
+
+group by 1, 2, 3
+
+;
+
+
+
+
+
+-- 熱門魚種挑選
+
+with bet_log as (
+
+  select *
+
+  FROM `rd7-data-big-query.bklog.TigerSharkFishStatisticsLog` a
+
+  INNER JOIN (select distinct user_id from `rd7-data-big-query.ExtData_Dragon.UserInfo` where ip_country = 'CN') b
+
+    ON a.UserID = b.user_id
+
+  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH) 
+
+        
+
+), fish_info as (
+
+  select FishID, FishName_CHT
+
+  from `rd7-data-big-query.MobileDW_Dragon.DimTigerSharkOdds`
+
+)
+
+
+
+select a.FishID, Status, b.FishName_CHT, sum(TotalBet) as TotalBet, sum(TotalWin) as TotalWin
+
+from bet_log a
+
+left join fish_info b
+
+  on a.FishID = b.FishID
+
+group by 1, 2, 3
+
+order by 4 desc
+
+;
+
+
+
+
+
+
+
+
+
+
+
+-- 目的: 阿茲特克、猴爺魚排行榜參與低下
+
+select *, TotalBet / 31 as daily_totalbet -- 一月熱門魚種
+
+from(
+
+      select FishID, Status,  sum(TotalBet) as TotalBet, sum(TotalWin) as TotalWin
+
+      FROM `rd7-data-big-query.bklog.TigerSharkFishStatisticsLog` a
+
+      INNER JOIN (select distinct user_id from `rd7-data-big-query.ExtData_Dragon.UserInfo` where ip_country = 'CN') b
+
+            ON a.UserID = b.user_id
+
+      where BQDate between '2026-01-01' and '2026-01-31'
+
+            AND BetPerShoot >= 100000
+
+      group by 1, 2
+
+) a
+
+left join (
+
+            select FishID, FishName_CHT
+
+            from `rd7-data-big-query.MobileDW_Dragon.DimTigerSharkOdds`
+
+            ) b
+
+      on a.FishID = b.FishID
+
+order by a.TotalBet desc
+
+;
+
+
+
+select b.GameName_CHT, 
+
+      sum(TotalBet) as totalbet, 
+
+      sum(TotalWIn) as totalwin,
+
+      sum(TotalBet) / 31 as daily_totalbet -- 一月熱門機台
+
+from (
+
+      select *
+
+      from `rd7-data-big-query.bklog.SessionBetWinLog`
+
+      where BQDate between '2026-01-01' and '2026-01-31'
+
+            AND Country = 'CN'
+
+            AND BetPerSpin >= 1000000
+
+) a
+
+left join (
+
+            select GameID, GameName_CHT
+
+            from `rd7-data-big-query.MobileDW_Dragon.DimGame_ID`
+
+            ) b
+
+      on a.GameID = b.GameID
+
+group by 1
+
+order by 2 desc
+
+;
+
+
+
+-- Step 1: 確認事實(真的低嗎?排行榜資料庫問題?)
+
+SELECT
+
+  a.UserID,
+
+  SUM(a.TotalBet) AS TotalBet,
+
+  SUM(a.TotalWin) as TotalWin
+
+FROM `rd7-data-big-query.bklog.TigerSharkFishStatisticsLog` a
+
+INNER JOIN (select distinct user_id from `rd7-data-big-query.ExtData_Dragon.UserInfo` where ip_country = 'CN') b
+
+  ON a.UserID = b.user_id
+
+WHERE a.BQDate between '2026-02-02' and '2026-02-03'
+
+  AND a.TableTypeID IN (12, 13, 14) -- VIP三個廳館
+
+  AND a.FishID = 116 -- 猴爺魚
+
+  AND a.BetPerShoot >= 100000
+
+GROUP BY a.UserID
+
+ORDER BY 3 DESC
+
+; 
+
+
+
+SELECT
+
+  a.UserID,
+
+  SUM(a.TotalBet) AS TotalBet,
+
+  SUM(a.TotalWin) as TotalWin
+
+FROM `rd7-data-big-query.bklog.SessionBetWinLog` a
+
+WHERE a.BQDate between '2026-02-02' and '2026-02-03'
+
+      AND Country = 'CN'
+
+      AND a.GameID = 509 -- 阿茲特克
+
+      -- AND a.BetPerSpin >= 1000000
+
+GROUP BY a.UserID
+
+HAVING sum(a.TotalWin) >= 3138500
+
+ORDER BY 3 DESC
+
+;
+
+
+
+-- Step 2: 排查問題，主要玩家玩的情況如何
+
+ -- aztec_player
+
+select UserID, 
+
+      sum(TotalBet) as totalbet, 
+
+      sum(TotalBet) / 31 as daily_totalbet
+
+from `rd7-data-big-query.bklog.SessionBetWinLog`
+
+where BQDate between '2026-01-01' and '2026-01-31'
+
+      AND Country = 'CN'
+
+      AND BetPerSpin >= 1000000
+
+      AND GameID = 509
+
+group by 1
+
+order by 2 desc
+
+;
+
+
+
+-- hoyeahfish_hunter: 看一月玩家，單日押量狀況
+
+SELECT
+
+  a.BQDate,
+
+  a.UserID,
+
+  SUM(a.TotalBet) AS TotalBet
+
+FROM `rd7-data-big-query.bklog.TigerSharkFishStatisticsLog` a
+
+INNER JOIN (select distinct user_id from `rd7-data-big-query.ExtData_Dragon.UserInfo` where ip_country = 'CN') b
+
+  ON a.UserID = b.user_id
+
+WHERE a.BQDate between '2026-01-01' and '2026-01-31'
+
+  AND a.TableTypeID IN (12, 13, 14)
+
+  AND a.FishID = 116 -- 猴爺魚
+
+  AND a.BetPerShoot >= 100000
+
+GROUP BY 1, 2
+
+ORDER BY 3 DESC
+
+; 
+
+
+
+
+
+-- 一月Aztec總押量前百名玩家，有幾位有參加排行榜
+
+select count(distinct UserID)
+
+from `rd7-data-big-query.bklog.SessionActive`
+
+where BQDate = '2026-02-02'
+
+      AND Country = 'CN'
+
+      AND UserID in 
+
+                    ( 
+
+                      select UserID
+
+                      from 
+
+                        (
+
+                        select UserID, sum(TotalBet) 
+
+                        from `rd7-data-big-query.bklog.SessionBetWinLog`
+
+                        where BQDate between '2026-01-01' and '2026-01-31'
+
+                            AND Country = 'CN'
+
+                            AND BetPerSpin >= 1000000
+
+                            AND GameID = 509
+
+                        group by 1
+
+                        order by 2 desc
+
+                        )
+
+                      limit 100
+
                     )
 ```
 
 ## [Social] 收贈幣量四分位數
 
 ```sql
--- transaction-level: 遊戲贈禮面額限制導致當玩家買25M時，會被記錄成兩筆12.5M。應該要再分玩家單日收禮量
-
-select NewUserTag, count(distinct a.ReceiverID) as usercounts, APPROX_QUANTILES(ReceiverCoinAward, 4) AS receivedcoin_quartiles 
-from (
-  select *
-  from `rd7-data-big-query.bklog.GemToCoinGiftAwardLog`
-  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-) a
-inner join (select  * from `rd7-data-big-query.kuochinfu.watchlist` where GroupID = 1 and Country = 'CN') b
-  on a.SenderID = b.UserID
-left join 
-      (
-        select UserID, NewUserTag
-        from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-        where BQDate = DATE_TRUNC(CURRENT_DATE(), MONTH) and 
-              Country = 'CN' 
-      )  c
-  on a.ReceiverID = c.UserID
-group by 1
-;
---
-select NewUserTag, count(distinct a.ReceiverID) as usercounts, APPROX_QUANTILES(ReceiverCoinAward, 4) AS receivedcoin_quartiles 
-from (
-  select *
-  from `rd7-data-big-query.bklog.GemToCoinGiftAwardLog`
-  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH)
-        AND ReceiverCoinAward > 0
-) a
-inner join (select  * from `rd7-data-big-query.kuochinfu.watchlist` where GroupID = 1 and Country = 'CN') b
-  on a.SenderID = b.UserID
-left join 
-      (
-        select UserID, NewUserTag
-        from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-        where BQDate between '2025-12-01' and '2025-12-31' 
-              AND Country = 'CN' 
-      )  c
-  on a.ReceiverID = c.UserID
+-- transaction-level: 遊戲贈禮面額限制導致當玩家買25M時，會被記錄成兩筆12.5M。應該要再分玩家單日收禮量
+
+
+
+select NewUserTag, count(distinct a.ReceiverID) as usercounts, APPROX_QUANTILES(ReceiverCoinAward, 4) AS receivedcoin_quartiles 
+
+from (
+
+  select *
+
+  from `rd7-data-big-query.bklog.GemToCoinGiftAwardLog`
+
+  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+
+) a
+
+inner join (select  * from `rd7-data-big-query.kuochinfu.watchlist` where GroupID = 1 and Country = 'CN') b
+
+  on a.SenderID = b.UserID
+
+left join 
+
+      (
+
+        select UserID, NewUserTag
+
+        from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+        where BQDate = DATE_TRUNC(CURRENT_DATE(), MONTH) and 
+
+              Country = 'CN' 
+
+      )  c
+
+  on a.ReceiverID = c.UserID
+
+group by 1
+
+;
+
+--
+
+select NewUserTag, count(distinct a.ReceiverID) as usercounts, APPROX_QUANTILES(ReceiverCoinAward, 4) AS receivedcoin_quartiles 
+
+from (
+
+  select *
+
+  from `rd7-data-big-query.bklog.GemToCoinGiftAwardLog`
+
+  where BQDate >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+
+        AND ReceiverCoinAward > 0
+
+) a
+
+inner join (select  * from `rd7-data-big-query.kuochinfu.watchlist` where GroupID = 1 and Country = 'CN') b
+
+  on a.SenderID = b.UserID
+
+left join 
+
+      (
+
+        select UserID, NewUserTag
+
+        from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+        where BQDate between '2025-12-01' and '2025-12-31' 
+
+              AND Country = 'CN' 
+
+      )  c
+
+  on a.ReceiverID = c.UserID
+
 group by 1
 ```
 
@@ -3043,15 +4969,24 @@ ORDER BY 3 DESC
 **描述：** 改GameID 來看要出的機台過往押量狀況，判斷獎勵要放啥跟幾天
 
 ```sql
--- 排行榜設計: 前三名控10%、整體控5%
-
-select BQDate, UserID, sum(TotalBet) as totalbet
-from `rd7-data-big-query.bklog.SessionBetWinLog`
-where BQDate >= '2026-01-01'
-  AND Country = 'CN'
-  AND GameID = 325
-  AND TotalBet > 0
-group by 1, 2
+-- 排行榜設計: 前三名控10%、整體控5%
+
+
+
+select BQDate, UserID, sum(TotalBet) as totalbet
+
+from `rd7-data-big-query.bklog.SessionBetWinLog`
+
+where BQDate >= '2026-01-01'
+
+  AND Country = 'CN'
+
+  AND GameID = 325
+
+  AND TotalBet > 0
+
+group by 1, 2
+
 order by 3 desc
 ```
 
@@ -3059,29 +4994,52 @@ order by 3 desc
 **描述：** 中客以上在2024二月整月刮刮卡的狀況
 
 ```sql
-with
-
-  usertag as (
-    select BQDate, UserID, NewUserTag
-    from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
-    where (BQDate = '2026-02-01' OR BQDate = '2024-02-01') 
-      AND Country = 'CN'
-      AND NewUserTag in ('中客', '大客', '超大客')
-  )
-
-
-, scratch as (
-  select *, date_trunc(BQDate, Month) as first_date
-  from `rd7-data-big-query.preprocessed_bklog.DailyUserGameMetrics`
-  where (BQDate >= '2026-02-01' OR BQDate between '2024-02-01' and '2024-02-28')
-      AND Country = 'CN'
-      AND GID LIKE 'ScratchLottery%'
-)
-
-
-select s.*, u.NewUserTag
-from scratch s
-inner join usertag u
+with
+
+
+
+  usertag as (
+
+    select BQDate, UserID, NewUserTag
+
+    from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`
+
+    where (BQDate = '2026-02-01' OR BQDate = '2024-02-01') 
+
+      AND Country = 'CN'
+
+      AND NewUserTag in ('中客', '大客', '超大客')
+
+  )
+
+
+
+
+
+, scratch as (
+
+  select *, date_trunc(BQDate, Month) as first_date
+
+  from `rd7-data-big-query.preprocessed_bklog.DailyUserGameMetrics`
+
+  where (BQDate >= '2026-02-01' OR BQDate between '2024-02-01' and '2024-02-28')
+
+      AND Country = 'CN'
+
+      AND GID LIKE 'ScratchLottery%'
+
+)
+
+
+
+
+
+select s.*, u.NewUserTag
+
+from scratch s
+
+inner join usertag u
+
   on s.first_date = u.BQDate and s.UserID = u.UserID
 ```
 
@@ -3141,26 +5099,46 @@ group by token
 **描述：** 驗證二月VIP管是否因為福利(原打底高優惠)從VIP館改貓拳導致押量下降
 
 ```sql
-SELECT 
-  day, 
-  -- 1. 先用 CASE 分配資料，再用 MAX 壓縮列
-  MAX(CASE WHEN month = 1 THEN user_counts END) AS jan_usercounts,
-  MAX(CASE WHEN month = 2 THEN user_counts END) AS feb_usercounts,
-  MAX(CASE WHEN month = 1 THEN total_bet / 1000000 END) AS jan_total_bet_M,
-  MAX(CASE WHEN month = 2 THEN total_bet / 1000000 END) AS feb_total_bet_M
-FROM (
-  SELECT 
-    EXTRACT(MONTH FROM BQDate) AS month, 
-    EXTRACT(DAY FROM BQDate) AS day,
-    COUNT(DISTINCT UserID) AS user_counts, 
-    SUM(TotalBet) AS total_bet
-  FROM `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
-  WHERE (BQDate BETWEEN '2026-02-01' AND '2026-02-09' OR BQDate BETWEEN '2026-01-01' AND '2026-01-09')
-    AND Country = 'CN'
-    AND TableTypeID IN (12, 13, 14)
-  GROUP BY 1, 2
-)
-GROUP BY day
+SELECT 
+
+  day, 
+
+  -- 1. 先用 CASE 分配資料，再用 MAX 壓縮列
+
+  MAX(CASE WHEN month = 1 THEN user_counts END) AS jan_usercounts,
+
+  MAX(CASE WHEN month = 2 THEN user_counts END) AS feb_usercounts,
+
+  MAX(CASE WHEN month = 1 THEN total_bet / 1000000 END) AS jan_total_bet_M,
+
+  MAX(CASE WHEN month = 2 THEN total_bet / 1000000 END) AS feb_total_bet_M
+
+FROM (
+
+  SELECT 
+
+    EXTRACT(MONTH FROM BQDate) AS month, 
+
+    EXTRACT(DAY FROM BQDate) AS day,
+
+    COUNT(DISTINCT UserID) AS user_counts, 
+
+    SUM(TotalBet) AS total_bet
+
+  FROM `rd7-data-big-query.bklog.SessionTigerSharkBetWinLog`
+
+  WHERE (BQDate BETWEEN '2026-02-01' AND '2026-02-09' OR BQDate BETWEEN '2026-01-01' AND '2026-01-09')
+
+    AND Country = 'CN'
+
+    AND TableTypeID IN (12, 13, 14)
+
+  GROUP BY 1, 2
+
+)
+
+GROUP BY day
+
 ORDER BY day
 ```
 
@@ -3217,126 +5195,246 @@ where GameID = 317
 ## [Others] 2026過年期間排行榜，高優惠禮包特權玩家名單
 
 ```sql
--- 0212~0217虎機五日累積排行榜: "AR1770820517"
--- 高優惠禮包資格: Top 20 
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-18' and EventID = "AR1770820517"
-order by Rank
-limit 20
-;
-
--- 0217~0222虎機五日累積排行榜: "AR1770866201"
--- 高優惠禮包資格: Top 20 
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-23' and EventID = "AR1770866201"
-order by Rank
-limit 20
-;
-
-
--- 0222~0227虎機五日累積排行榜: "AR1770866283"
--- 高優惠禮包資格: Top 20 
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-28' and EventID = "AR1770866283"
-order by Rank
-limit 20
-;
-
-
-
-
--- 0213~0216魚機掉落TokenA錦鯉排行榜:"AR1770875610"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-17' and EventID = "AR1770875610"
-order by Rank
-limit 5
-;
--- 0217~0220魚機掉落TokenA錦鯉排行榜:"AR1770875611"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-21' and EventID = "AR1770875611"
-order by Rank
-limit 5
-;
--- 0221~0224魚機掉落TokenA錦鯉排行榜:"AR1770875612"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-25' and EventID = "AR1770875612"
-order by Rank
-limit 5
-;
-
-
-
--- 0213~0216魚機掉落TokenB春排行榜:"AR1770875730"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-17' and EventID = "AR1770875730"
-order by Rank
-limit 5
-;
--- 0217~0220魚機掉落TokenB春排行榜:"AR1770875731"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-21' and EventID = "AR1770875731"
-order by Rank
-limit 5
-;
--- 0221~0224魚機掉落TokenB春排行榜:"AR1770875732"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-25' and EventID = "AR1770875732"
-order by Rank
-limit 5
-;
-
-
-
-
--- 0213~0216魚機掉落TokenC招財貓排行榜:"AR1770875818"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-17' and EventID = "AR1770875818"
-order by Rank
-limit 5
-;
--- 0217~0220魚機掉落TokenC招財貓排行榜:"AR1770875819"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-21' and EventID = "AR1770875819"
-order by Rank
-limit 5
-;
--- 0221~0224魚機掉落TokenC招財貓排行榜:"AR1770875820"
--- 高優惠禮包資格: Top 5
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-25' and EventID = "AR1770875820"
-order by Rank
-limit 5
-;
-
-
-
--- 0213~0224魚機三種Token掉落累積排行榜: ""
--- 高優惠禮包資格: Top 20 
-select Rank, UserID, Score
-from `rd7-data-big-query.bklog.RankSettlementLog`
-where BQDate = '2026-02-25' and EventID = ""
-order by Rank
-limit 20
+-- 0212~0217虎機五日累積排行榜: "AR1770820517"
+
+-- 高優惠禮包資格: Top 20 
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-18' and EventID = "AR1770820517"
+
+order by Rank
+
+limit 20
+
+;
+
+
+
+-- 0217~0222虎機五日累積排行榜: "AR1770866201"
+
+-- 高優惠禮包資格: Top 20 
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-23' and EventID = "AR1770866201"
+
+order by Rank
+
+limit 20
+
+;
+
+
+
+
+
+-- 0222~0227虎機五日累積排行榜: "AR1770866283"
+
+-- 高優惠禮包資格: Top 20 
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-28' and EventID = "AR1770866283"
+
+order by Rank
+
+limit 20
+
+;
+
+
+
+
+
+
+
+
+
+-- 0213~0216魚機掉落TokenA錦鯉排行榜:"AR1770875610"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-17' and EventID = "AR1770875610"
+
+order by Rank
+
+limit 5
+
+;
+
+-- 0217~0220魚機掉落TokenA錦鯉排行榜:"AR1770875611"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-21' and EventID = "AR1770875611"
+
+order by Rank
+
+limit 5
+
+;
+
+-- 0221~0224魚機掉落TokenA錦鯉排行榜:"AR1770875612"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-25' and EventID = "AR1770875612"
+
+order by Rank
+
+limit 5
+
+;
+
+
+
+
+
+
+
+-- 0213~0216魚機掉落TokenB春排行榜:"AR1770875730"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-17' and EventID = "AR1770875730"
+
+order by Rank
+
+limit 5
+
+;
+
+-- 0217~0220魚機掉落TokenB春排行榜:"AR1770875731"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-21' and EventID = "AR1770875731"
+
+order by Rank
+
+limit 5
+
+;
+
+-- 0221~0224魚機掉落TokenB春排行榜:"AR1770875732"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-25' and EventID = "AR1770875732"
+
+order by Rank
+
+limit 5
+
+;
+
+
+
+
+
+
+
+
+
+-- 0213~0216魚機掉落TokenC招財貓排行榜:"AR1770875818"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-17' and EventID = "AR1770875818"
+
+order by Rank
+
+limit 5
+
+;
+
+-- 0217~0220魚機掉落TokenC招財貓排行榜:"AR1770875819"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-21' and EventID = "AR1770875819"
+
+order by Rank
+
+limit 5
+
+;
+
+-- 0221~0224魚機掉落TokenC招財貓排行榜:"AR1770875820"
+
+-- 高優惠禮包資格: Top 5
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-25' and EventID = "AR1770875820"
+
+order by Rank
+
+limit 5
+
+;
+
+
+
+
+
+
+
+-- 0213~0224魚機三種Token掉落累積排行榜: ""
+
+-- 高優惠禮包資格: Top 20 
+
+select Rank, UserID, Score
+
+from `rd7-data-big-query.bklog.RankSettlementLog`
+
+where BQDate = '2026-02-25' and EventID = ""
+
+order by Rank
+
+limit 20
+
 ;
 ```
 
@@ -3377,23 +5475,40 @@ inner join user_tag u
 **描述：** 中大客連續登入任務25632221明明都有登但任務紀錄上沒寄到
 
 ```sql
--- 客訴: 沒有領到31天的任務
-
-select distinct BQDate
-from `rd7-data-big-query.bklog.SessionActive`
-where BQDate >= '2026-01-14'
-  AND Country = 'CN'
-  AND UserID = 25632221
-order by BQDate
-;
-
-
--- select UserID, count(*)
--- from `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
--- where BQDate >= '2026-01-14'
---   AND Country = 'CN'
---   AND EventName = 'SP_LV2_20260114_3_v23456_for_cn_G'
--- group by 1
+-- 客訴: 沒有領到31天的任務
+
+
+
+select distinct BQDate
+
+from `rd7-data-big-query.bklog.SessionActive`
+
+where BQDate >= '2026-01-14'
+
+  AND Country = 'CN'
+
+  AND UserID = 25632221
+
+order by BQDate
+
+;
+
+
+
+
+
+-- select UserID, count(*)
+
+-- from `rd7-data-big-query.bklog.ActivityMissionCompleteLog`
+
+-- where BQDate >= '2026-01-14'
+
+--   AND Country = 'CN'
+
+--   AND EventName = 'SP_LV2_20260114_3_v23456_for_cn_G'
+
+-- group by 1
+
 -- ;
 ```
 
@@ -4188,48 +6303,90 @@ from dim_mission dm
 **描述：** 主表為BattlePassBuyLog，計算的是每日的營收(會包含非起始日開的任務，而是以前開但持續至今的)
 
 ```sql
-with user_tags as (
-  from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`  # 抓到前一天的資料，當天的新登入用戶不會有資料
-  |> where BQDate >= '2026-01-01'
-  |> extend extract(month from BQDate) as month
-  |> select month, UserID, NewUserTag, UserTag
-)
-
-, dim_mission as (
-  from `rd7-data-big-query.preprocessed_bklog.MissionList`
-  |> where MissionStartDate >= '2025-12-01' and MissionStartDate <= current_date('Asia/Taipei') # MissionStartDate 為 partition 依據，節省流量用
-      and MissionEndDate >= '2026-01-01' # 抓2026有上線的任務
-  |> extend
-      split(EventName, '_')[safe_offset(0)] as ActivityType,
-      split(EventName, '_')[safe_offset(4)] as open_vip,
-      split(EventName, '_')[safe_offset(5)] as CountryOperation,
-      split(EventName, '_')[safe_offset(6)] as Country,
-      REGEXP_REPLACE(EventName, r'_[0-9]{8}_', '_') AS EventName_unit,
-      concat(cast(MissionStartDate as string), ' to ', cast(MissionEndDate as string)) as which_round,
-      array_length(json_query_array(MissionLevelInfo, '$')) as max_level 
-)
-
-from `rd7-data-big-query.bklog.BattlePassBuyLog`
-|> where BQDate between '2026-01-01' and date_sub(current_date('Asia/Taipei'), interval 1 day)
-      and BuyResult = 1
-|> set EventTime = datetime(timestamp_seconds(EventTime), 'Asia/Taipei')
-|> rename
-    BQDate as order_date,
-    UserID as buyer_UserID,
-    VipLV as buyer_VipLV,
-    Country as buyer_Country
-|> extend 
-      substr(BattlePassID, 4) as EventName,
-      extract( month from order_date) as order_month
-|> select order_month, order_date, EventTime, buyer_UserID, buyer_VipLV, buyer_Country, BuyNumber, VIPPointAwarded, BattlePassID, EventName, OrderID
-|> as bpb
-|> inner join user_tags ut
-        on bpb.order_month = ut.month and bpb.buyer_UserID = ut.UserID
-|> select * except(month, UserID)
-|> as fact
-|> left join dim_mission dm
-    using(EventName)
-|> select order_month, order_date, EventTime, OrderID, buyer_UserID, buyer_VipLV, buyer_Country, NewUserTag, UserTag, EventName, BuyNumber, VIPPointAwarded, BattlePassID, MissionUUID, MissionLevelInfo, GameCategory, MissionFeature, MissionFeatureCHT, GameType, ActivityGameID, GameID, MissionBookMark, MissionStartDate, MissionEndDate, ActivityStartTime, ActivityEndTime, BatchID, RunDay, BreakDay, ActivityTYpe, open_vip, CountryOperation, Country, EventName_unit, which_round, max_level
+with user_tags as (
+
+  from `rd7-data-big-query.preprocessed_bklog.UserOperationGroup`  # 抓到前一天的資料，當天的新登入用戶不會有資料
+
+  |> where BQDate >= '2026-01-01'
+
+  |> extend extract(month from BQDate) as month
+
+  |> select month, UserID, NewUserTag, UserTag
+
+)
+
+
+
+, dim_mission as (
+
+  from `rd7-data-big-query.preprocessed_bklog.MissionList`
+
+  |> where MissionStartDate >= '2025-12-01' and MissionStartDate <= current_date('Asia/Taipei') # MissionStartDate 為 partition 依據，節省流量用
+
+      and MissionEndDate >= '2026-01-01' # 抓2026有上線的任務
+
+  |> extend
+
+      split(EventName, '_')[safe_offset(0)] as ActivityType,
+
+      split(EventName, '_')[safe_offset(4)] as open_vip,
+
+      split(EventName, '_')[safe_offset(5)] as CountryOperation,
+
+      split(EventName, '_')[safe_offset(6)] as Country,
+
+      REGEXP_REPLACE(EventName, r'_[0-9]{8}_', '_') AS EventName_unit,
+
+      concat(cast(MissionStartDate as string), ' to ', cast(MissionEndDate as string)) as which_round,
+
+      array_length(json_query_array(MissionLevelInfo, '$')) as max_level 
+
+)
+
+
+
+from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+|> where BQDate between '2026-01-01' and date_sub(current_date('Asia/Taipei'), interval 1 day)
+
+      and BuyResult = 1
+
+|> set EventTime = datetime(timestamp_seconds(EventTime), 'Asia/Taipei')
+
+|> rename
+
+    BQDate as order_date,
+
+    UserID as buyer_UserID,
+
+    VipLV as buyer_VipLV,
+
+    Country as buyer_Country
+
+|> extend 
+
+      substr(BattlePassID, 4) as EventName,
+
+      extract( month from order_date) as order_month
+
+|> select order_month, order_date, EventTime, buyer_UserID, buyer_VipLV, buyer_Country, BuyNumber, VIPPointAwarded, BattlePassID, EventName, OrderID
+
+|> as bpb
+
+|> inner join user_tags ut
+
+        on bpb.order_month = ut.month and bpb.buyer_UserID = ut.UserID
+
+|> select * except(month, UserID)
+
+|> as fact
+
+|> left join dim_mission dm
+
+    using(EventName)
+
+|> select order_month, order_date, EventTime, OrderID, buyer_UserID, buyer_VipLV, buyer_Country, NewUserTag, UserTag, EventName, BuyNumber, VIPPointAwarded, BattlePassID, MissionUUID, MissionLevelInfo, GameCategory, MissionFeature, MissionFeatureCHT, GameType, ActivityGameID, GameID, MissionBookMark, MissionStartDate, MissionEndDate, ActivityStartTime, ActivityEndTime, BatchID, RunDay, BreakDay, ActivityTYpe, open_vip, CountryOperation, Country, EventName_unit, which_round, max_level
+
 |> order by EventTime desc
 ```
 
@@ -4286,72 +6443,138 @@ from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
 ```
 
 ## [Analysis] 2月BP付費人數掉的原因
-**描述：** # 確認整月的distinct 付費人數是否掉
-from `rd7-data-big-query.bklog.BattlePassBuyLog`
-|> where BQDate between '2026-01-01' and '2026-02-28'
-    and Country = 'CN'
-|> extend extract(month from BQDate) as buy_month
-|> aggregate count(distinct UserID)
-    group by buy_month
-;
-
-# 一月有消費二月沒消費的玩家，在一月都在買啥
-from `rd7-data-big-query.bklog.BattlePassBuyLog`
-|> where BQDate between '2026-01-01' and '2026-01-31'
-    and Country = 'CN'
-    and UserID not in (
-        from `rd7-data-big-query.bklog.BattlePassBuyLog`
-        |> where BQDate between '2026-02-01' and '2026-02-28'
-            and Country = 'CN'
-        |> select distinct UserID)
-    and UserID in (
-        from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-        |> where BQDate between '2026-02-01' and '2026-02-28'
-            and Country = 'CN'
-        |> select distinct UserID
-    )
-|> extend substring(BattlePassID, 4) as EventName
-|> left join 
-        (
-        from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
-        |> where BQDate between '2026-01-01' and '2026-01-31'
-                and CountryOperation = 'for'
-                and Country = 'CN'
-        |> select distinct EventName, MissionBookMark
-        )
-    using(EventName)
-|> aggregate count(*) as ordercounts
-    group by MissionBookMark
-|> order by ordercounts desc
-;
-
-# 一月有消費二月沒消費的玩家，但還是有玩的玩家人數(530位是一月有消費二月無消費的人，其中340位是二月仍然有在玩的)
-with jan_bp_buyers as (
-  from `rd7-data-big-query.bklog.BattlePassBuyLog`
-  |> where BQDate between '2026-01-01' and '2026-01-31'
-     and Country = 'CN'
-  |> select distinct UserID
-)
-
-, feb_bp_buyers as (
-  from `rd7-data-big-query.bklog.BattlePassBuyLog`
-  |> where BQDate between '2026-02-01' and '2026-02-28'
-     and Country = 'CN'
-  |> select distinct UserID
-)
-
-, feb_active_users as (
-  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-  |> where BQDate between '2026-02-01' and '2026-02-28'
-     and Country = 'CN'
-  |> select distinct UserID
-)
-
-from jan_bp_buyers a
-|> left join feb_bp_buyers b using(UserID)
-|> where b.UserID is null
-|> inner join feb_active_users c using(UserID) 
-|> select a.UserID
+**描述：** # 確認整月的distinct 付費人數是否掉
+
+from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+|> where BQDate between '2026-01-01' and '2026-02-28'
+
+    and Country = 'CN'
+
+|> extend extract(month from BQDate) as buy_month
+
+|> aggregate count(distinct UserID)
+
+    group by buy_month
+
+;
+
+
+
+# 一月有消費二月沒消費的玩家，在一月都在買啥
+
+from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+|> where BQDate between '2026-01-01' and '2026-01-31'
+
+    and Country = 'CN'
+
+    and UserID not in (
+
+        from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+        |> where BQDate between '2026-02-01' and '2026-02-28'
+
+            and Country = 'CN'
+
+        |> select distinct UserID)
+
+    and UserID in (
+
+        from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+        |> where BQDate between '2026-02-01' and '2026-02-28'
+
+            and Country = 'CN'
+
+        |> select distinct UserID
+
+    )
+
+|> extend substring(BattlePassID, 4) as EventName
+
+|> left join 
+
+        (
+
+        from `rd7-data-big-query.DailyDimData.ActivityMissionDimLog`
+
+        |> where BQDate between '2026-01-01' and '2026-01-31'
+
+                and CountryOperation = 'for'
+
+                and Country = 'CN'
+
+        |> select distinct EventName, MissionBookMark
+
+        )
+
+    using(EventName)
+
+|> aggregate count(*) as ordercounts
+
+    group by MissionBookMark
+
+|> order by ordercounts desc
+
+;
+
+
+
+# 一月有消費二月沒消費的玩家，但還是有玩的玩家人數(530位是一月有消費二月無消費的人，其中340位是二月仍然有在玩的)
+
+with jan_bp_buyers as (
+
+  from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+  |> where BQDate between '2026-01-01' and '2026-01-31'
+
+     and Country = 'CN'
+
+  |> select distinct UserID
+
+)
+
+
+
+, feb_bp_buyers as (
+
+  from `rd7-data-big-query.bklog.BattlePassBuyLog`
+
+  |> where BQDate between '2026-02-01' and '2026-02-28'
+
+     and Country = 'CN'
+
+  |> select distinct UserID
+
+)
+
+
+
+, feb_active_users as (
+
+  from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+  |> where BQDate between '2026-02-01' and '2026-02-28'
+
+     and Country = 'CN'
+
+  |> select distinct UserID
+
+)
+
+
+
+from jan_bp_buyers a
+
+|> left join feb_bp_buyers b using(UserID)
+
+|> where b.UserID is null
+
+|> inner join feb_active_users c using(UserID) 
+
+|> select a.UserID
+
 
 ```sql
 # 確認整月的distinct 付費人數是否掉
@@ -4778,30 +7001,54 @@ from user_tag ut
 ## [BattlePass] 滿額任務AB Testi 回應率估算
 
 ```sql
-from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
-|> where BQDate between '2026-01-01' and '2026-01-31'
-      and Country = 'CN'
-      and 9035 not in unnest(Status)
-|> aggregate count(distinct UserID) as dau
-    group by BQDate
-|> as a    
-|> left join (
-              from `rd7-data-big-query.bklog.ActivityMissionPopUpStateLog`
-              |> where BQDate between '2026-01-01' and '2026-01-31'
-                  and EventName in 
-                            (
-                            from `rd7-data-big-query.preprocessed_bklog.MissionList`
-                            |> where BatchID = '2026-01-01#a5660'
-                            |> select distinct EventName
-                            )
-              |> aggregate count(distinct UserID) as impressed_usercounts
-                  group by BQDate
-            ) b
-        on a.BQDate = b.BQDate
-|> extend 
-      impressed_usercounts / dau as impression_conversion
-|> select a.*, impressed_usercounts, impression_conversion
-|> order by BQDate
+from `rd7-data-big-query.preprocessed_bklog.DailyUserInfoSnapshot`
+
+|> where BQDate between '2026-01-01' and '2026-01-31'
+
+      and Country = 'CN'
+
+      and 9035 not in unnest(Status)
+
+|> aggregate count(distinct UserID) as dau
+
+    group by BQDate
+
+|> as a    
+
+|> left join (
+
+              from `rd7-data-big-query.bklog.ActivityMissionPopUpStateLog`
+
+              |> where BQDate between '2026-01-01' and '2026-01-31'
+
+                  and EventName in 
+
+                            (
+
+                            from `rd7-data-big-query.preprocessed_bklog.MissionList`
+
+                            |> where BatchID = '2026-01-01#a5660'
+
+                            |> select distinct EventName
+
+                            )
+
+              |> aggregate count(distinct UserID) as impressed_usercounts
+
+                  group by BQDate
+
+            ) b
+
+        on a.BQDate = b.BQDate
+
+|> extend 
+
+      impressed_usercounts / dau as impression_conversion
+
+|> select a.*, impressed_usercounts, impression_conversion
+
+|> order by BQDate
+
 |> aggregate avg(impression_conversion)
 ```
 
@@ -5597,32 +7844,58 @@ from `rd7-data-big-query.bklog.GameConsume`
 **描述：** 檢驗每天的發出金幣量以及各個EventName發出輛
 
 ```sql
-with missioninfo as (
-  from `rd7-data-big-query.preprocessed_bklog.MissionList`
-  |> where MissionStartDate >= '2026-04-15'
-  |> select distinct EventName, MissionBookMark
-)
-
-# 5/1-5/5 BP付費線日均發出驟降
-from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
-|> where BQDate between '2026-04-26' and '2026-05-05'
-        and Country = 'CN'
-        and RewardType = 1
-        and BattlePass = 1
-|> aggregate sum(RewardValue) as coin_distributed
-    group by  BQDate, EventName
-|> left join missioninfo using(EventName)
-|> extend extract(month from BQDate) as month
-|> select * except(EventName, BQDate)
-|> pivot (
-  sum(coin_distributed) as coin_distributed
-  for month in (4, 5)
-) 
-|> set
-    coin_distributed_4 = ifnull(coin_distributed_4, 0),
-    coin_distributed_5 = ifnull(coin_distributed_5, 0)
-
-|> extend coin_distributed_5 - coin_distributed_4 as diff
+with missioninfo as (
+
+  from `rd7-data-big-query.preprocessed_bklog.MissionList`
+
+  |> where MissionStartDate >= '2026-04-15'
+
+  |> select distinct EventName, MissionBookMark
+
+)
+
+
+
+# 5/1-5/5 BP付費線日均發出驟降
+
+from `rd7-data-big-query.bklog.ActivityMissionRewardLog`
+
+|> where BQDate between '2026-04-26' and '2026-05-05'
+
+        and Country = 'CN'
+
+        and RewardType = 1
+
+        and BattlePass = 1
+
+|> aggregate sum(RewardValue) as coin_distributed
+
+    group by  BQDate, EventName
+
+|> left join missioninfo using(EventName)
+
+|> extend extract(month from BQDate) as month
+
+|> select * except(EventName, BQDate)
+
+|> pivot (
+
+  sum(coin_distributed) as coin_distributed
+
+  for month in (4, 5)
+
+) 
+
+|> set
+
+    coin_distributed_4 = ifnull(coin_distributed_4, 0),
+
+    coin_distributed_5 = ifnull(coin_distributed_5, 0)
+
+
+
+|> extend coin_distributed_5 - coin_distributed_4 as diff
+
 |> order by diff
 ```
 
@@ -5639,15 +7912,25 @@ from `rd7-data-big-query.preprocessed_bklog.DailyUserGameMetrics`
 |> aggregate  sum(CoinBet) as CoinBet, sum(CoinWin) as CoinWin, sum(CoinBetTimes) as CoinBetTimes
     group by BQDate
 
-# 分押注段
-from `rd7-data-big-query.preprocessed_bklog.DailyUserFishMetrics`
-|> where BQDate between '2026-04-01' and '2026-05-07'
-    and UserID = 58950363
-    and TableTypeID in (12, 13, 14)
-|> aggregate 
-      sum(TotalWinTimes) as TotalWinTimes, 
-      sum(TotalWin) as TotalWin,
-      sum(TotalBetTimes) as TotalBetTotalBetTimes, 
-      sum(TotalBet) as TotalBet
+# 分押注段
+
+from `rd7-data-big-query.preprocessed_bklog.DailyUserFishMetrics`
+
+|> where BQDate between '2026-04-01' and '2026-05-07'
+
+    and UserID = 58950363
+
+    and TableTypeID in (12, 13, 14)
+
+|> aggregate 
+
+      sum(TotalWinTimes) as TotalWinTimes, 
+
+      sum(TotalWin) as TotalWin,
+
+      sum(TotalBetTimes) as TotalBetTotalBetTimes, 
+
+      sum(TotalBet) as TotalBet
+
     group by BQDate, BetPerShoot
 ```
