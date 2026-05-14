@@ -15,6 +15,8 @@ inclusion: always
 | 分析安德魯 | Analyst | analyst-andrew | 因果推論、BP/排行榜成效分析、統計建模、ML 因果模型 |
 | 體脂30安格魯 | Monitor | monitor-anglo | 議題樹拆解、異常偵測、健檢監控、根因分析 |
 | 漢考克盎格魯 | Data Engineer | data-hancock | BigQuery schema 精通、SQL 撰寫、資料前處理 |
+| 查查君 | Quick Query | cha-cha-gin-agent | 自然語言數據查詢（Text2SQL API） |
+| Boss Predictor | Product Data | boss-predictor-agent | Boss 規格分析、玩家偏好、成功率預測 |
 
 ## 工作流程
 
@@ -30,6 +32,8 @@ inclusion: always
 | 活動成效如何？因果關係？ | analyst-andrew | 「這次 BP 活動對營收的因果效應是多少？」 |
 | 數據異常、為什麼下降？ | monitor-anglo | 「昨天 DAU 掉了 10%，原因是什麼？」 |
 | 需要撈資料、寫 SQL | data-hancock | 「幫我查過去 7 天各服的付費率」 |
+| 快速查數據（簡單問題） | cha-cha-gin-agent | 「昨天營收多少」「目前在線排行榜」 |
+| Boss/魚種分析、新規格預測 | boss-predictor-agent | 「巫妖領主的玩家偏好分析」「新 Boss 成功率預測」 |
 | 複合問題 | 多個 Agent 協作 | 先讓 data-hancock 撈資料，再讓 analyst-andrew 分析 |
 
 ## 回覆風格

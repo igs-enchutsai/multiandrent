@@ -50,6 +50,18 @@ instances:
     topic_id: 29
     role: worker
 
+  cha-cha-gin-agent:
+    working_directory: ./agents/cha-cha-gin-agent
+    description: "查查君 - 自然語言數據查詢（Text2SQL API）"
+    topic_id: 242
+    role: worker
+
+  boss-predictor-agent:
+    working_directory: ./agents/boss-predictor-agent
+    description: "Boss Success Predictor - Boss 規格成功率預測與玩家偏好分析"
+    topic_id: 243
+    role: worker
+
   # ─── 通用對話 ───
   kiro-cli-agent:
     working_directory: ./agents/kiro-cli-agent
