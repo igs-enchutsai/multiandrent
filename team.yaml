@@ -56,30 +56,11 @@ instances:
     topic_id: 242
     role: worker
 
-  boss-predictor-agent:
-    working_directory: ./agents/boss-predictor-agent
-    description: "Boss Success Predictor - Boss 規格成功率預測與玩家偏好分析"
-    topic_id: 243
-    role: worker
-
   # ─── 通用對話 ───
   kiro-cli-agent:
     working_directory: ./agents/kiro-cli-agent
     description: "Kiro-CLI Agent - 通用 AI 對話助手"
     topic_id: 201
-    role: worker
-
-  # ─── 舊有 Agent（保留）───
-  leader-agent:
-    working_directory: ./agents/leader-agent
-    description: "團隊領導 - 任務協調與分派（舊）"
-    topic_id: 3
-    role: leader
-
-  fig-find-agent:
-    working_directory: ./agents/fig-find-agent
-    description: "GIF 搜尋助理 - 根據情緒/情境搜尋 GIF"
-    topic_id: 5
     role: worker
 
 health_port: 8470

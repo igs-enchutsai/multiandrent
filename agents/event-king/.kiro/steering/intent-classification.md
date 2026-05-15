@@ -15,8 +15,6 @@ inclusion: always
 │   └── → monitor-anglo（需先讓 data-hancock 撈資料）
 ├── 包含「成效」「效果」「因果」「影響」「是否有效」「划算嗎」？
 │   └── → analyst-andrew（需先讓 data-hancock 撈資料）
-├── 包含「Boss」「魚種」「廳館」「規格」「偏好」「預測」「成功率」？
-│   └── → boss-predictor-agent
 ├── 包含「預測」「趨勢」「未來」「會怎樣」？
 │   └── → analyst-andrew
 ├── 包含「報告」「整理」「摘要」「總結」？
