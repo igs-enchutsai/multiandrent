@@ -1,5 +1,16 @@
 # Event-King Changelog
 
+## 2026-05-15 移除不需要的 Agent + 更新分派邏輯
+
+**修改檔案：** leader-role.md, intent-classification.md, team.yaml
+**原因：** 移除 boss-predictor-agent、fig-find-agent、gif-finder-agent、x-crawler-agent、leader-agent（不再需要）
+**改動：**
+- team.yaml 移除 5 個 instance
+- leader-role.md 移除 Boss Predictor 成員
+- intent-classification.md 移除 boss-predictor 分派路徑
+- 刪除對應的 agents/ 目錄
+**效果：** 團隊精簡為 6 個 Agent
+
 ## 2026-05-15 補齊 template 檔案 + 功能擴充
 
 **修改檔案：** 00-agent-rules.md, intent-classification.md, test-policy.md（新增）
