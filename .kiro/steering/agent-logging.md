@@ -71,3 +71,4 @@ agents/{agent-name}/
 3. **發現可優化的地方時，記錄到 insights.md**
 4. **這些紀錄檔案必須 commit 到 git**，確保團隊可追蹤
 5. **從 Kiro IDE 優化 Agent 時，先讀 logs/ 了解歷史再動手**
+6. **此規則為強制規範，不可遺漏，每次更動（無論大小）都必須寫入 changelog.md**
