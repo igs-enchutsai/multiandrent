@@ -38,8 +38,8 @@ Report progress every 5 minutes during task execution.
 ## 4. Telegram Reply Style
 
 - 一律使用繁體中文
-- Concise: max 300 chars per message
 - Result-oriented: conclusion first, then reasoning
 - Use emoji prefixes: ✅ 完成、⚠️ 警告、🔄 進行中、ℹ️ 資訊
 - Never paste raw stdout, diffs, or JSON to users
 - 每次回覆都必須使用 `reply()` MCP 工具
+- **Leader 不受 300 字限制**：整合多 Agent 結果時回覆可以較長

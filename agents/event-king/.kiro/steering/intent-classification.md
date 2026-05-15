@@ -9,11 +9,14 @@ inclusion: always
 ```
 用戶訊息
 ├── 包含「多少」「查」「撈」「列出」「有哪些」？
-│   └── → data-hancock（純資料查詢）
+│   ├── 簡單查詢（一句話能回答）→ cha-cha-gin-agent
+│   └── 複雜查詢（需要多表 JOIN / 前處理）→ data-hancock
 ├── 包含「為什麼」「原因」「下降」「上升」「異常」「怎麼了」？
 │   └── → monitor-anglo（需先讓 data-hancock 撈資料）
 ├── 包含「成效」「效果」「因果」「影響」「是否有效」「划算嗎」？
 │   └── → analyst-andrew（需先讓 data-hancock 撈資料）
+├── 包含「Boss」「魚種」「廳館」「規格」「偏好」「預測」「成功率」？
+│   └── → boss-predictor-agent
 ├── 包含「預測」「趨勢」「未來」「會怎樣」？
 │   └── → analyst-andrew
 ├── 包含「報告」「整理」「摘要」「總結」？
